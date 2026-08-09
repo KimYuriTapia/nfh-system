@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFH HOA - {{ role }} Dashboard</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='officer.css') }}?v=1.0.1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div class="officer-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="NFH Logo" class="sidebar-logo" onerror="this.style.display='none'">
+                <div class="brand-text">
+                    <h2>NFH HOA</h2>
+                    <span>{{ role }} Portal</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">Dashboard</div>
+                <a href="#overview" class="nav-item active" data-tab="overview-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <span>Overview</span>
+                </a>
+
+                {% if role in ['Secretary', 'Treasurer'] %}
+                <div class="nav-section">Request Management</div>
+                <a href="#assigned" class="nav-item" data-tab="assigned-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>My Assigned Requests</span>
+                </a>
+                {% endif %}
+
+                {% if role == 'Treasurer' %}
+                <div class="nav-section">Payments & Fees</div>
+                <a href="#payments" class="nav-item" data-tab="payments-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    <span>Payment Verification</span>
+                </a>
+                <a href="#fee-mgmt" class="nav-item" data-tab="fee-mgmt-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span>Fixed Fee Management</span>
+                </a>
+                {% endif %}
+
+                {% if role == 'President' %}
+                <div class="nav-section">Approvals</div>
+                <a href="#pres-approvals" class="nav-item" data-tab="pres-approvals-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <span>Request Approvals</span>
+                </a>
+                <a href="#pres-fees" class="nav-item" data-tab="pres-fees-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span>Fee Approvals</span>
+                </a>
+                {% endif %}
+
+                <div class="nav-section">Account</div>
+                <a href="javascript:void(0)" class="nav-item text-danger" id="logoutBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Area -->
+        <div class="main-container">
+            <header class="top-header">
+                <button class="toggle-btn" id="sidebarToggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <div class="header-title">
+                    <h1 id="pageTitle">{{ role }} Portal</h1>
+                </div>
+                <div class="header-user">
+                    <span class="user-role-badge role-{{ role|lower }}">{{ role }}</span>
+                    <span class="user-name">{{ session.full_name }}</span>
+                </div>
+            </header>
+
+            <!-- Alerts -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <div class="flash-messages">
+                  {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            <main class="content-body">
+                <!-- OVERVIEW TAB -->
+                <section id="overview-tab" class="tab-content active">
+                    <div class="card-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-primary">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Total Requests</h3>
+                                <p class="stat-number">{{ requests|length }}</p>
+                            </div>
+                        </div>
+
+                        {% if role in ['Secretary', 'Treasurer'] %}
+                        <div class="stat-card">
+                            <div class="stat-icon bg-warning">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Assigned to Me</h3>
+                                <p class="stat-number">{{ assigned_requests|length }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if role == 'President' %}
+                        <div class="stat-card">
+                            <div class="stat-icon bg-accent">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Pending Final Approval</h3>
+                                <p class="stat-number">{{ assigned_requests|length }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>My Role Activity Log</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>User</th>
+                                        <th>Action</th>
+                                        <th>Target</th>
+                                        <th>Previous</th>
+                                        <th>New</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for audit in audits[-5:]|reverse %}
+                                    <tr>
+                                        <td>{{ audit.timestamp }}</td>
+                                        <td><strong>{{ audit.username }}</strong></td>
+                                        <td>{{ audit.action }}</td>
+                                        <td><code>{{ audit.item }}</code></td>
+                                        <td>{{ audit.prev_val }}</td>
+                                        <td>{{ audit.new_val }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="6" class="text-center">No activity records found.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ASSIGNED REQUESTS TAB (Secretary / Treasurer) -->
+                {% if role in ['Secretary', 'Treasurer'] %}
+                <section id="assigned-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Requests Assigned to {{ role }}</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Homeowner</th>
+                                        <th>Type</th>
+                                        <th>Details</th>
+                                        <th>Attachment</th>
+                                        <th>Status</th>
+                                        <th>Payment</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for req in assigned_requests %}
+                                    <tr>
+                                        <td><code>{{ req.id }}</code></td>
+                                        <td>{{ req.homeowner }}</td>
+                                        <td>{{ req.request_type }}</td>
+                                        <td>{{ req.details | format_details }}</td>
+                                        <td>
+                                            {% if req.attachment %}
+                                            <a href="{{ url_for('static', filename='uploads/' ~ req.attachment) }}" target="_blank" class="text-link">View File</a>
+                                            {% else %}
+                                            None
+                                            {% endif %}
+                                        </td>
+                                        <td><span class="status-pill status-{{ req.status|replace(' ', '-')|lower }}">{{ req.status }}</span></td>
+                                        <td><span class="pay-pill pay-{{ req.payment_status|lower }}">{{ req.payment_status }}</span></td>
+                                        <td>
+                                            {% if req.status in ['Submitted', 'Under Review'] %}
+                                            <button class="btn btn-sm btn-primary" onclick="openCheckModal('{{ req.id }}')">Check / Review</button>
+                                            {% else %}
+                                            <button class="btn btn-sm btn-secondary" onclick="openCheckModal('{{ req.id }}')">View Details</button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="8" class="text-center">No assigned requests currently pending.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+
+                <!-- PAYMENT VERIFICATION TAB (Treasurer ONLY) -->
+                {% if role == 'Treasurer' %}
+                <section id="payments-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Payment Verification (ALL Requests)</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Request ID</th>
+                                        <th>Homeowner</th>
+                                        <th>Type</th>
+                                        <th>Fee Amount</th>
+                                        <th>Payment Status</th>
+                                        <th>Request Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for req in requests %}
+                                    <tr>
+                                        <td><code>{{ req.id }}</code></td>
+                                        <td>{{ req.homeowner }}</td>
+                                        <td>{{ req.request_type }}</td>
+                                        <td>₱{{ "%.2f"|format(req.fee) }}</td>
+                                        <td><span class="pay-pill pay-{{ req.payment_status|lower }}">{{ req.payment_status }}</span></td>
+                                        <td><span class="status-pill status-{{ req.status|replace(' ', '-')|lower }}">{{ req.status }}</span></td>
+                                        <td>
+                                            {% if req.payment_status == 'Unpaid' %}
+                                            <form action="{{ url_for('update_payment', req_id=req.id) }}" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn btn-sm btn-success">Mark as Paid</button>
+                                            </form>
+                                            {% else %}
+                                            <span class="text-success">Verified Paid</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FIXED FEE MANAGEMENT TAB (Treasurer ONLY) -->
+                <section id="fee-mgmt-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Standard Pricing Configuration</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Item Name</th>
+                                        <th>Active Amount</th>
+                                        <th>Proposed Amount</th>
+                                        <th>Status</th>
+                                        <th>Propose Update</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for name, fee in fees.items() %}
+                                    <tr>
+                                        <td><strong>{{ name }}</strong></td>
+                                        <td>₱{{ "%.2f"|format(fee.amount) }}</td>
+                                        <td>
+                                            {% if fee.proposed_amount %}
+                                                <span class="text-warning font-bold">₱{{ "%.2f"|format(fee.proposed_amount) }}</span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td><span class="status-pill status-{{ fee.status|replace(' ', '-')|lower }}">{{ fee.status }}</span></td>
+                                        <td>
+                                            <form action="{{ url_for('propose_fee') }}" method="POST" class="inline-form">
+                                                <input type="hidden" name="fee_name" value="{{ name }}">
+                                                <input type="number" step="0.01" name="amount" required placeholder="New ₱" class="form-input-sm">
+                                                <button type="submit" class="btn btn-sm btn-primary">Propose</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+
+                <!-- PRESIDENT REQUEST APPROVAL TAB (President ONLY) -->
+                {% if role == 'President' %}
+                <section id="pres-approvals-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Requests Pending Final Executive Approval</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Homeowner</th>
+                                        <th>Type</th>
+                                        <th>Payment</th>
+                                        <th>Req Status</th>
+                                        <th>Remarks</th>
+                                        <th>Executive Decision</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for req in assigned_requests %}
+                                    <tr>
+                                        <td><code>{{ req.id }}</code></td>
+                                        <td>{{ req.homeowner }}</td>
+                                        <td>{{ req.request_type }}</td>
+                                        <td><span class="pay-pill pay-{{ req.payment_status|lower }}">{{ req.payment_status }}</span></td>
+                                        <td><span class="status-pill status-{{ req.status|replace(' ', '-')|lower }}">{{ req.status }}</span></td>
+                                        <td>{{ req.remarks or 'None' }}</td>
+                                        <td>
+                                            <form action="{{ url_for('president_action', req_id=req.id) }}" method="POST" class="inline-form">
+                                                <input type="text" name="remarks" placeholder="Optional remark" class="form-input-sm">
+                                                <button type="submit" name="action" value="approve" class="btn btn-sm btn-success">Approve</button>
+                                                <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger">Reject</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="7" class="text-center">No requests pending President approval.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PRESIDENT FEE APPROVAL TAB (President ONLY) -->
+                <section id="pres-fees-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Proposed Fee Changes Review</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Item Name</th>
+                                        <th>Current Fee</th>
+                                        <th>Proposed Fee</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% set pending_count = namespace(val=0) %}
+                                    {% for name, fee in fees.items() %}
+                                        {% if fee.status == 'Pending President Approval' %}
+                                        {% set pending_count.val = pending_count.val + 1 %}
+                                        <tr>
+                                            <td><strong>{{ name }}</strong></td>
+                                            <td>₱{{ "%.2f"|format(fee.amount) }}</td>
+                                            <td><strong class="text-warning">₱{{ "%.2f"|format(fee.proposed_amount) }}</strong></td>
+                                            <td>
+                                                <form action="{{ url_for('president_fee_action') }}" method="POST" class="inline-form">
+                                                    <input type="hidden" name="fee_name" value="{{ name }}">
+                                                    <button type="submit" name="action" value="approve" class="btn btn-sm btn-success">Approve New Fee</button>
+                                                    <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger">Reject</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if pending_count.val == 0 %}
+                                    <tr><td colspan="4" class="text-center">No pending fee change proposals.</td></tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Officer Check Request Modal -->
+    <div class="modal-overlay" id="checkModal">
+        <div class="modal-box" style="max-width: 550px;">
+            <div class="modal-header">
+                <h3>Review Request <span id="modalReqId"></span></h3>
+                <button class="close-btn" onclick="closeModal('checkModal')">&times;</button>
+            </div>
+            
+            <!-- Dynamic Request Details Display Box -->
+            <div id="modalReqDetails" style="background-color: #FAFAFA; padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
+                <p class="text-muted" style="font-size: 0.85rem;">Loading request details...</p>
+            </div>
+
+            <form id="checkForm" action="" method="POST">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Officer Remarks</label>
+                        <textarea name="remarks" class="form-input" placeholder="Required if returning for correction..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" name="action" value="correction" class="btn btn-warning">Return for Correction</button>
+                    <button type="submit" name="action" value="check" class="btn btn-success">Mark as Checked</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Logout Modal -->
+    <div class="modal-overlay" id="logoutModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Log out of NFH HOA?</h3>
+                <button class="close-btn" onclick="closeModal('logoutModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to log out of the {{ role }} portal?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('logoutModal')">Cancel</button>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Log Out</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pass backend requests list into client-side JS -->
+    <script>
+        const ALL_REQUESTS = {{ requests | tojson }};
+    </script>
+    <script src="{{ url_for('static', filename='officer.js') }}"></script>
+</body>
+</html>
