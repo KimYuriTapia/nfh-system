@@ -100,11 +100,10 @@
                                 <th>Fee</th>
                                 <th>Payment Status</th>
                                 <th>Status</th>
-                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="requestTableBody">
-                            <tr><td colspan="7" class="empty-placeholder">No recent requests found</td></tr>
+                            <tr><td colspan="6" class="empty-placeholder">No recent requests found</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -548,19 +547,6 @@
             <button class="close-modal" onclick="closeGeneralModal()">&times;</button>
             <div class="modal-title" id="generalModalTitle">Detail View</div>
             <div id="generalModalBody"></div>
-        </div>
-    </div>
-
-    <!-- CANCEL REQUEST CONFIRMATION MODAL -->
-    <div class="modal-overlay" id="cancelConfirmModal">
-        <div class="modal-box" style="max-width: 450px; text-align: center;">
-            <button class="close-modal" onclick="closeCancelModal()">&times;</button>
-            <div class="modal-title" style="color: var(--accent-red); margin-bottom: 12px;">Cancel Request?</div>
-            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 24px;">Are you sure you want to cancel request <strong id="cancelTargetReqId"></strong>? This action cannot be undone.</p>
-            <div style="display: flex; gap: 12px; justify-content: center;">
-                <button type="button" class="btn-cancel" style="padding: 10px 20px;" onclick="closeCancelModal()">Keep Request</button>
-                <button type="button" class="btn-save" style="background-color: var(--accent-red); padding: 10px 20px;" id="confirmCancelBtn">Cancel Request</button>
-            </div>
         </div>
     </div>
 
