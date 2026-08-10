@@ -1,26 +1,12 @@
 import os
 import json
-import re
-import secrets
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
-from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = 'nfh_hoa_secret_key_super_secure'
-
-# Mail Configuration
-app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'True').lower() in ['true', '1', 't']
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', '')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
-app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', os.environ.get('MAIL_USERNAME', 'noreply@nfh-hoa.org'))
-
-mail = Mail(app)
 
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -35,10 +21,7 @@ REQUESTS_FILE = os.path.join(DATA_DIR, 'requests.json')
 FEES_FILE = os.path.join(DATA_DIR, 'fees.json')
 AUDIT_FILE = os.path.join(DATA_DIR, 'audit.json')
 
-# Temporary verification code stores (In-Memory)
-PENDING_REGISTRATIONS = {}
-PASSWORD_RESETS = {}
-
+# Helper functions for persistence
 def load_json(filepath, default):
     if not os.path.exists(filepath):
         with open(filepath, 'w') as f:
@@ -54,6 +37,7 @@ def save_json(filepath, data):
     with open(filepath, 'w') as f:
         json.dump(data, f, indent=4)
 
+# Jinja Filter to format JSON request details into readable text
 @app.template_filter('format_details')
 def format_details_filter(details):
     if not details:
@@ -128,7 +112,7 @@ INITIAL_USERS = [
         "block": "Block 1",
         "lot": "Lot 2",
         "email": "jose.rizal@example.com",
-        "mobile": "09123456789"
+        "mobile": "+639123456789"
     }
 ]
 
@@ -187,20 +171,7 @@ def get_role_redirect_url(role):
         return url_for('home')
     return url_for('index')
 
-def send_verification_email(recipient_email, code, subject="NFH HOA Verification Code"):
-    try:
-        if app.config['MAIL_USERNAME']:
-            msg = Message(subject=subject, recipients=[recipient_email])
-            msg.body = f"Your North Fairway Homes verification code is: {code}\n\nThis code will expire in 10 minutes."
-            mail.send(msg)
-        else:
-            print(f"[DEVELOPMENT EMAIL LOG] To: {recipient_email} | Subject: {subject} | Code: {code}")
-        return True
-    except Exception as e:
-        print(f"Error sending email: {e}")
-        return False
-
-# Auth Decorator
+# Auth Decorators
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -239,7 +210,8 @@ def serve_static(filename):
 
 @app.route('/')
 def index():
-    # Always render the index / landing login page directly
+    if 'username' in session:
+        return redirect(get_role_redirect_url(session.get('role')))
     return render_template('index.html')
 
 @app.route('/login', methods=['POST'])
@@ -248,9 +220,9 @@ def login():
     password = request.form.get('password')
     
     users = load_json(USERS_FILE, INITIAL_USERS)
-    user = next((u for u in users if u['username'] == username), None)
+    user = next((u for u in users if u['username'] == username and u['password'] == password), None)
     
-    if user and (user['password'] == password or check_password_hash(user.get('password', ''), password)):
+    if user:
         if user.get('status') != 'Active':
             flash('Your account is currently inactive. Please contact system admin.', 'danger')
             return redirect(url_for('index'))
@@ -272,9 +244,9 @@ def api_login():
     password = data.get('password', '')
 
     users = load_json(USERS_FILE, INITIAL_USERS)
-    user = next((u for u in users if u['username'] == username), None)
+    user = next((u for u in users if u['username'] == username and u['password'] == password), None)
 
-    if user and (user['password'] == password or check_password_hash(user.get('password', ''), password)):
+    if user:
         if user.get('status') != 'Active':
             return jsonify({"status": "error", "message": "Account inactive. Contact admin."}), 403
 
@@ -306,10 +278,6 @@ def api_register():
     if not all([first_name, last_name, email, username, phone, password]):
         return jsonify({"status": "error", "message": "All required fields must be filled."}), 400
 
-    # Strictly 11-digit numeric phone validation
-    if not re.match(r'^09\d{9}$', phone):
-        return jsonify({"status": "error", "message": "Phone number must be exactly 11 numeric digits (e.g., 09123456789)."}), 400
-
     if password != password_confirm:
         return jsonify({"status": "error", "message": "Passwords do not match."}), 400
 
@@ -321,54 +289,15 @@ def api_register():
     if any(u.get('email', '').lower() == email.lower() for u in users):
         return jsonify({"status": "error", "message": "Email address is already registered."}), 400
 
-    code = f"{secrets.randbelow(1000000):06d}"
-    expires_at = datetime.now() + timedelta(minutes=10)
-
-    PENDING_REGISTRATIONS[email.lower()] = {
-        "user_data": {
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": email,
-            "username": username,
-            "mobile": phone,
-            "password": password
-        },
-        "code": code,
-        "expires_at": expires_at
-    }
-
-    send_verification_email(email, code)
-    return jsonify({"status": "verification_required", "email": email, "message": "Verification code sent to your email."})
-
-@app.route('/api/verify-email', methods=['POST'])
-def api_verify_email():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-    code = data.get('code', '').strip()
-
-    pending = PENDING_REGISTRATIONS.get(email)
-    if not pending:
-        return jsonify({"status": "error", "message": "No pending registration found for this email."}), 400
-
-    if datetime.now() > pending['expires_at']:
-        PENDING_REGISTRATIONS.pop(email, None)
-        return jsonify({"status": "error", "message": "Verification code expired. Please register again."}), 400
-
-    if pending['code'] != code:
-        return jsonify({"status": "error", "message": "Incorrect verification code."}), 400
-
-    u_data = pending['user_data']
-    users = load_json(USERS_FILE, INITIAL_USERS)
-
     new_user = {
         "id": len(users) + 1,
-        "username": u_data['username'],
-        "password": u_data['password'],
-        "first_name": u_data['first_name'],
-        "last_name": u_data['last_name'],
-        "full_name": f"{u_data['first_name']} {u_data['last_name']}".strip(),
-        "email": u_data['email'],
-        "mobile": u_data['mobile'],
+        "username": username,
+        "password": password,
+        "first_name": first_name,
+        "last_name": last_name,
+        "full_name": f"{first_name} {last_name}".strip(),
+        "email": email,
+        "mobile": phone,
         "role": "Homeowner",
         "status": "Active",
         "date_joined": datetime.now().strftime("%Y-%m-%d"),
@@ -379,92 +308,9 @@ def api_verify_email():
 
     users.append(new_user)
     save_json(USERS_FILE, users)
-    PENDING_REGISTRATIONS.pop(email, None)
+    log_audit(username, "Homeowner", "Self Registration", username, "-", "Account Created")
 
-    log_audit(u_data['username'], "Homeowner", "Self Registration", u_data['username'], "-", "Account Created")
     return jsonify({"status": "success", "message": "Registration successful! You can now log in."})
-
-@app.route('/api/resend-code', methods=['POST'])
-def api_resend_code():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-
-    pending = PENDING_REGISTRATIONS.get(email)
-    if not pending:
-        return jsonify({"status": "error", "message": "No pending registration session found."}), 400
-
-    code = f"{secrets.randbelow(1000000):06d}"
-    pending['code'] = code
-    pending['expires_at'] = datetime.now() + timedelta(minutes=10)
-
-    send_verification_email(email, code)
-    return jsonify({"status": "success", "message": "A new verification code has been sent."})
-
-@app.route('/api/forgot-password/request', methods=['POST'])
-def api_forgot_password_request():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-
-    users = load_json(USERS_FILE, INITIAL_USERS)
-    user = next((u for u in users if u.get('email', '').lower() == email), None)
-
-    if not user:
-        return jsonify({"status": "error", "message": "No account associated with this email address."}), 404
-
-    code = f"{secrets.randbelow(1000000):06d}"
-    PASSWORD_RESETS[email] = {
-        "user_id": user['id'],
-        "code": code,
-        "expires_at": datetime.now() + timedelta(minutes=10)
-    }
-
-    send_verification_email(email, code, subject="NFH HOA Password Reset Code")
-    return jsonify({"status": "success", "email": email, "message": "Password reset code sent to your email."})
-
-@app.route('/api/forgot-password/verify', methods=['POST'])
-def api_forgot_password_verify():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-    code = data.get('code', '').strip()
-
-    reset_info = PASSWORD_RESETS.get(email)
-    if not reset_info:
-        return jsonify({"status": "error", "message": "No password reset requested."}), 400
-
-    if datetime.now() > reset_info['expires_at']:
-        PASSWORD_RESETS.pop(email, None)
-        return jsonify({"status": "error", "message": "Reset code expired. Please request a new one."}), 400
-
-    if reset_info['code'] != code:
-        return jsonify({"status": "error", "message": "Invalid verification code."}), 400
-
-    reset_info['verified'] = True
-    return jsonify({"status": "success", "message": "Code verified. Please enter your new password."})
-
-@app.route('/api/forgot-password/reset', methods=['POST'])
-def api_forgot_password_reset():
-    data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
-    new_pass = data.get('new_password', '')
-    conf_pass = data.get('confirm_password', '')
-
-    if new_pass != conf_pass:
-        return jsonify({"status": "error", "message": "New passwords do not match."}), 400
-
-    reset_info = PASSWORD_RESETS.get(email)
-    if not reset_info or not reset_info.get('verified'):
-        return jsonify({"status": "error", "message": "Unauthorized or unverified reset request."}), 400
-
-    users = load_json(USERS_FILE, INITIAL_USERS)
-    for u in users:
-        if u['id'] == reset_info['user_id']:
-            u['password'] = new_pass
-            save_json(USERS_FILE, users)
-            PASSWORD_RESETS.pop(email, None)
-            log_audit(u['username'], u['role'], 'Password Reset', u['username'], 'Password', 'Reset via Verification Code')
-            return jsonify({"status": "success", "message": "Password reset successfully. You can now log in."})
-
-    return jsonify({"status": "error", "message": "User not found."}), 404
 
 @app.route('/logout')
 def logout():
@@ -483,7 +329,6 @@ def api_logout():
 @login_required
 @role_required('Homeowner')
 def home():
-    requests_data = load_json(REQUESTS_FILE, [])
     user_requests = [r for r in requests_data if r.get('homeowner') == session['full_name'] or r.get('homeowner_username') == session['username']]
     return render_template('home.html', user_requests=user_requests, fees=fees_data)
 
@@ -500,8 +345,8 @@ def api_user_data():
     reqs = load_json(REQUESTS_FILE, [])
     user_reqs = [r for r in reqs if r.get('homeowner_username') == session['username'] or r.get('homeowner') == session['full_name']]
 
-    active_reqs = len([r for r in user_reqs if r.get('status') not in ['Approved', 'Rejected', 'Cancelled']])
-    unpaid_reqs = [r for r in user_reqs if r.get('payment_status') == 'Unpaid' and r.get('status') not in ['Rejected', 'Cancelled']]
+    active_reqs = len([r for r in user_reqs if r.get('status') not in ['Approved', 'Rejected']])
+    unpaid_reqs = [r for r in user_reqs if r.get('payment_status') == 'Unpaid' and r.get('status') != 'Rejected']
     outstanding_dues = sum(float(r.get('fee', 0)) for r in unpaid_reqs)
 
     formatted_reqs = []
@@ -608,7 +453,7 @@ def api_settings_password():
     users = load_json(USERS_FILE, INITIAL_USERS)
     for u in users:
         if u['id'] == session['user_id']:
-            if u['password'] != curr_pass and not check_password_hash(u['password'], curr_pass):
+            if u['password'] != curr_pass:
                 return jsonify({"status": "error", "message": "Incorrect current password."}), 400
             u['password'] = new_pass
             save_json(USERS_FILE, users)
@@ -671,33 +516,6 @@ def api_request_submit():
 
     log_audit(session['username'], session['role'], 'Submitted Request', req_id, '-', 'Submitted')
     return jsonify({"status": "success", "message": f"Request {req_id} submitted successfully!"})
-
-@app.route('/api/requests/cancel/<req_id>', methods=['POST'])
-@login_required
-@role_required('Homeowner')
-def api_request_cancel(req_id):
-    reqs = load_json(REQUESTS_FILE, [])
-    req = next((r for r in reqs if r['id'] == req_id), None)
-
-    if not req:
-        return jsonify({"status": "error", "message": "Request not found."}), 404
-
-    # Backend permission check to ensure current homeowner owns the request
-    if req.get('homeowner_username') != session['username'] and req.get('homeowner') != session['full_name']:
-        return jsonify({"status": "error", "message": "Unauthorized to cancel this request."}), 403
-
-    cancellable_statuses = ['Submitted', 'Pending', 'Under Review', 'For Correction']
-    if req.get('status') not in cancellable_statuses:
-        return jsonify({"status": "error", "message": f"Cannot cancel request in state: {req.get('status')}."}), 400
-
-    prev_status = req['status']
-    req['status'] = 'Cancelled'
-    req['last_updated'] = datetime.now().strftime("%d/%m/%Y - %H:%M")
-
-    save_json(REQUESTS_FILE, reqs)
-    log_audit(session['username'], session['role'], 'Request Cancelled', req_id, prev_status, 'Cancelled')
-
-    return jsonify({"status": "success", "message": "Request cancelled successfully."})
 
 @app.route('/api/alerts/read', methods=['POST'])
 @login_required
@@ -789,7 +607,7 @@ def officer_dashboard():
     fees = load_json(FEES_FILE, INITIAL_FEES)
     
     if role in ['Secretary', 'Treasurer']:
-        assigned_reqs = [r for r in reqs if r.get('assigned_officer') == role and r.get('status') != 'Cancelled']
+        assigned_reqs = [r for r in reqs if r.get('assigned_officer') == role]
     else:
         assigned_reqs = [r for r in reqs if r.get('status') == 'Pending President Approval']
         
@@ -812,10 +630,6 @@ def check_request(req_id):
     reqs = load_json(REQUESTS_FILE, [])
     req = next((r for r in reqs if r['id'] == req_id), None)
     if req:
-        if req.get('status') == 'Cancelled':
-            flash('Cannot process a cancelled request.', 'danger')
-            return redirect(url_for('officer_dashboard'))
-
         if req['assigned_officer'] != session['role']:
             flash('This request is not assigned to your role.', 'danger')
             return redirect(url_for('officer_dashboard'))
@@ -851,10 +665,6 @@ def update_payment(req_id):
     reqs = load_json(REQUESTS_FILE, [])
     req = next((r for r in reqs if r['id'] == req_id), None)
     if req:
-        if req.get('status') == 'Cancelled':
-            flash('Cannot update payment for a cancelled request.', 'danger')
-            return redirect(url_for('officer_dashboard'))
-
         prev_pay = req['payment_status']
         req['payment_status'] = 'Paid'
         req['last_updated'] = datetime.now().strftime("%d/%m/%Y - %H:%M")
@@ -892,10 +702,6 @@ def president_action(req_id):
     reqs = load_json(REQUESTS_FILE, [])
     req = next((r for r in reqs if r['id'] == req_id), None)
     if req:
-        if req.get('status') == 'Cancelled':
-            flash('Cannot process a cancelled request.', 'danger')
-            return redirect(url_for('officer_dashboard'))
-
         action = request.form.get('action')
         remarks = request.form.get('remarks', '')
         prev_status = req['status']
