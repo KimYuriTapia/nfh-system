@@ -32,11 +32,58 @@
                         <label for="login-password">Password</label>
                         <input type="password" id="login-password" placeholder="Enter your password" required>
                     </div>
+                    <div style="text-align: right; margin-bottom: 16px;">
+                        <a href="#" id="to-forgot-password" style="font-size: 0.85rem; color: var(--primary-action); text-decoration: none; font-weight: 600;">Forgot Password?</a>
+                    </div>
                     <button type="submit" class="btn-submit" id="btn-signin-submit">Sign In</button>
                 </form>
 
                 <p class="toggle-text">
                     Don't have an account? <a href="#" id="to-signup">Sign Up</a>
+                </p>
+            </div>
+
+            <!-- FORGOT PASSWORD BOX -->
+            <div id="forgot-box" class="form-box" style="display: none;">
+                <h2>Forgot Password</h2>
+                <p class="form-subtitle">Enter your registered email to receive a verification code</p>
+
+                <!-- Step 1: Email Request -->
+                <form id="forgot-email-form">
+                    <div class="input-group full-width">
+                        <label for="forgot-email">Registered Email Address</label>
+                        <input type="email" id="forgot-email" placeholder="juan.delacruz@domain.com" required>
+                    </div>
+                    <button type="submit" class="btn-submit" id="btn-forgot-send">Send Verification Code</button>
+                </form>
+
+                <!-- Step 2: Verification Code -->
+                <form id="forgot-code-form" style="display: none; margin-top: 15px;">
+                    <div class="input-group full-width">
+                        <label for="forgot-code">Verification Code</label>
+                        <input type="text" id="forgot-code" placeholder="Enter 6-digit code" maxlength="6" required>
+                    </div>
+                    <button type="submit" class="btn-submit" id="btn-forgot-verify">Verify Code</button>
+                    <div style="text-align: center; margin-top: 10px;">
+                        <a href="#" id="forgot-resend-link" style="font-size: 0.85rem; color: var(--primary-action);">Resend Code</a>
+                    </div>
+                </form>
+
+                <!-- Step 3: Password Reset -->
+                <form id="forgot-reset-form" style="display: none; margin-top: 15px;">
+                    <div class="input-group full-width">
+                        <label for="forgot-new-pass">New Password</label>
+                        <input type="password" id="forgot-new-pass" placeholder="••••••••" required>
+                    </div>
+                    <div class="input-group full-width">
+                        <label for="forgot-conf-pass">Confirm New Password</label>
+                        <input type="password" id="forgot-conf-pass" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-submit" id="btn-forgot-reset">Reset Password</button>
+                </form>
+
+                <p class="toggle-text">
+                    Remember your password? <a href="#" id="forgot-to-signin">Sign In</a>
                 </p>
             </div>
 
@@ -48,23 +95,23 @@
                 <form id="signup-form" class="form-grid">
                     <div class="input-group">
                         <label for="reg-first">First Name</label>
-                        <input type="text" id="reg-first" placeholder="John" required>
+                        <input type="text" id="reg-first" placeholder="Juan" required>
                     </div>
                     <div class="input-group">
                         <label for="reg-last">Last Name</label>
-                        <input type="text" id="reg-last" placeholder="Doe" required>
+                        <input type="text" id="reg-last" placeholder="Dela Cruz" required>
                     </div>
                     <div class="input-group full-width">
                         <label for="reg-email">Email Address</label>
-                        <input type="email" id="reg-email" placeholder="john.doe@domain.com" required>
+                        <input type="email" id="reg-email" placeholder="juan.delacruz@domain.com" required>
                     </div>
                     <div class="input-group">
                         <label for="reg-user">Username</label>
-                        <input type="text" id="reg-user" placeholder="johndoe99" required>
+                        <input type="text" id="reg-user" placeholder="juandc99" required>
                     </div>
                     <div class="input-group">
                         <label for="reg-phone">Phone Number</label>
-                        <input type="tel" id="reg-phone" placeholder="+63 900 000 0000" required>
+                        <input type="tel" id="reg-phone" placeholder="09123456789" maxlength="11" required>
                     </div>
                     <div class="input-group">
                         <label for="reg-pass">Password</label>
@@ -81,6 +128,27 @@
 
                 <p class="toggle-text">
                     Already have an account? <a href="#" id="to-signin">Sign In</a>
+                </p>
+            </div>
+
+            <!-- EMAIL VERIFICATION MODAL FOR SIGNUP -->
+            <div id="verification-box" class="form-box" style="display: none;">
+                <h2>Verify Email Address</h2>
+                <p class="form-subtitle" id="verify-email-subtitle">Enter the verification code sent to your email</p>
+
+                <form id="verification-form">
+                    <div class="input-group full-width">
+                        <label for="verify-code">Verification Code</label>
+                        <input type="text" id="verify-code" placeholder="Enter 6-digit code" maxlength="6" required>
+                    </div>
+                    <button type="submit" class="btn-submit" id="btn-verify-submit">Complete Registration</button>
+                    <div style="text-align: center; margin-top: 12px;">
+                        <a href="#" id="resend-signup-code" style="font-size: 0.85rem; color: var(--primary-action);">Resend Code</a>
+                    </div>
+                </form>
+
+                <p class="toggle-text">
+                    Need to modify details? <a href="#" id="back-to-signup">Back to Sign Up</a>
                 </p>
             </div>
         </div>
