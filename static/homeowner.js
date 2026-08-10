@@ -231,9 +231,9 @@ function getTemplateHTML(formId, profile) {
                             <label>Vehicle Type <span>*</span></label>
                             <div class="input-wrapper">
                                 <select name="vType_0" onchange="recalculateVehiclePricing()" required>
-                                    <option value="4 Wheels">4 Wheels (₱100.00)</option>
-                                    <option value="2 Wheels">2 Wheels (₱50.00)</option>
-                                    <option value="3 Wheels">3 Wheels (₱50.00)</option>
+                                    <option value="4 Wheels">4 Wheels (₱200.00)</option>
+                                    <option value="2/3 Wheels">2 Wheels (₱100.00)</option>
+                                    <option value="E-Bike">3 Wheels (₱100.00)</option>
                                 </select>
                             </div>
                         </div>
