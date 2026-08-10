@@ -64,12 +64,8 @@ function closeMobileNavigation() {
 
 function handleSignOut() {
     fetch('/api/logout', { method: 'POST' })
-        .then(() => {
-            window.location.href = '/';
-        })
-        .catch(() => {
-            window.location.href = '/';
-        });
+        .then(() => { window.location.href = '/'; })
+        .catch(() => { window.location.href = '/'; });
 }
 
 function openSectionModal(title) {
@@ -183,7 +179,7 @@ function populateDashboardData(dash) {
 function populateUserProfile(user) {
     if (!user) return;
 
-    document.querySelectorAll('.shared-user-name').forEach(el => el.textContent = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.strip());
+    document.querySelectorAll('.shared-user-name').forEach(el => el.textContent = user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim());
     document.querySelectorAll('.shared-first-name').forEach(el => el.textContent = user.first_name || 'Homeowner');
 
     const nameDisplay = document.getElementById('sidebar-display-name');
@@ -244,7 +240,6 @@ async function fetchUserData() {
     }
 }
 
-// Request Modal Logic
 function openRequestModal(btn) {
     const modal = document.getElementById('requestModal');
     const title = btn.getAttribute('data-title');
@@ -423,6 +418,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) {
                 showToastNotification('Error updating profile', 'error');
+            }
+        });
+    }
+
+    const securityForm = document.getElementById('securityForm');
+    if (securityForm) {
+        securityForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const curr = document.getElementById('sec-current').value;
+            const newP = document.getElementById('sec-new').value;
+            const confP = document.getElementById('sec-confirm').value;
+
+            if (newP !== confP) {
+                showToastNotification('New passwords do not match.', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/settings/password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        current_password: curr,
+                        new_password: newP,
+                        confirm_password: confP
+                    })
+                });
+                const result = await res.json();
+                if (result.status === 'success') {
+                    showToastNotification(result.message, 'success');
+                    securityForm.reset();
+                } else {
+                    showToastNotification(result.message || 'Password update failed.', 'error');
+                }
+            } catch (err) {
+                showToastNotification('Error updating password.', 'error');
             }
         });
     }
