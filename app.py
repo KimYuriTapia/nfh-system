@@ -30,7 +30,6 @@ def generate_verification_code():
     return str(random.randint(100000, 999999))
 
 def send_email_code(email, code, purpose="verification"):
-    # Reuses environment-based/mock configuration mechanism without exposing credentials
     print(f"[EMAIL SERVICE] Code for {email} ({purpose}): {code}")
     return True
 
@@ -186,7 +185,7 @@ def get_role_redirect_url(role):
 def validate_ph_phone(phone):
     return len(phone) == 11 and phone.startswith("09") and phone.isdigit()
 
-# Auth Decorators
+# Auth Decorators with functools.wraps
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -208,7 +207,7 @@ def role_required(*roles):
                 flash('Unauthorized access.', 'danger')
                 return redirect(url_for('index'))
             return f(*args, **kwargs)
-        return decorator
+        return decorated_function
     return decorator
 
 @app.route('/static/<path:filename>')
@@ -223,13 +222,13 @@ def serve_static(filename):
 
 # --- AUTH ROUTES ---
 
-@app.route('/')
+@app.route('/', endpoint='index')
 def index():
     if 'username' in session:
         return redirect(get_role_redirect_url(session.get('role')))
     return render_template('index.html')
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST'], endpoint='login')
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
@@ -252,7 +251,7 @@ def login():
         flash('Invalid username or password.', 'danger')
         return redirect(url_for('index'))
 
-@app.route('/api/login', methods=['POST'])
+@app.route('/api/login', methods=['POST'], endpoint='api_login')
 def api_login():
     data = request.get_json() or {}
     username = data.get('username', '').strip()
@@ -279,7 +278,7 @@ def api_login():
     else:
         return jsonify({"status": "error", "message": "Invalid username or password."}), 401
 
-@app.route('/api/send-verification-code', methods=['POST'])
+@app.route('/api/send-verification-code', methods=['POST'], endpoint='send_verification_code')
 def send_verification_code():
     data = request.get_json() or {}
     email = data.get('email', '').strip().lower()
@@ -297,7 +296,6 @@ def send_verification_code():
             return jsonify({"status": "error", "message": "No account found associated with this email address."}), 404
 
     code = generate_verification_code()
-    # Expire in 10 minutes (600 seconds)
     VERIFICATION_CODES[email] = {
         "code": code,
         "expiry": time.time() + 600,
@@ -308,7 +306,7 @@ def send_verification_code():
     send_email_code(email, code, purpose)
     return jsonify({"status": "success", "message": f"Verification code sent to {email}."})
 
-@app.route('/api/verify-code', methods=['POST'])
+@app.route('/api/verify-code', methods=['POST'], endpoint='verify_code')
 def verify_code():
     data = request.get_json() or {}
     email = data.get('email', '').strip().lower()
@@ -330,7 +328,7 @@ def verify_code():
     record["verified"] = True
     return jsonify({"status": "success", "message": "Verification code successfully verified."})
 
-@app.route('/api/register', methods=['POST'])
+@app.route('/api/register', methods=['POST'], endpoint='api_register')
 def api_register():
     data = request.get_json() or {}
     first_name = data.get('first_name', '').strip()
@@ -386,7 +384,7 @@ def api_register():
 
     return jsonify({"status": "success", "message": "Registration successful! You can now log in."})
 
-@app.route('/api/forgot-password/reset', methods=['POST'])
+@app.route('/api/forgot-password/reset', methods=['POST'], endpoint='api_forgot_password_reset')
 def api_forgot_password_reset():
     data = request.get_json() or {}
     email = data.get('email', '').strip().lower()
@@ -416,27 +414,27 @@ def api_forgot_password_reset():
 
     return jsonify({"status": "success", "message": "Password successfully updated."})
 
-@app.route('/logout')
+@app.route('/logout', endpoint='logout')
 def logout():
     session.clear()
     flash('You have been logged out successfully.', 'info')
     return redirect(url_for('index'))
 
-@app.route('/api/logout', methods=['POST', 'GET'])
+@app.route('/api/logout', methods=['POST', 'GET'], endpoint='api_logout')
 def api_logout():
     session.clear()
     return jsonify({"status": "success", "message": "Logged out successfully."})
 
 # --- HOMEOWNER ROUTES ---
 
-@app.route('/home')
+@app.route('/home', endpoint='home')
 @login_required
 @role_required('Homeowner')
 def home():
     user_requests = [r for r in requests_data if r.get('homeowner') == session['full_name'] or r.get('homeowner_username') == session['username']]
     return render_template('home.html', user_requests=user_requests, fees=fees_data)
 
-@app.route('/api/user-data', methods=['GET'])
+@app.route('/api/user-data', methods=['GET'], endpoint='api_user_data')
 @login_required
 @role_required('Homeowner')
 def api_user_data():
@@ -474,7 +472,7 @@ def api_user_data():
 
     return jsonify({"status": "success", "user": user, "dashboard": dashboard})
 
-@app.route('/api/profile/update', methods=['POST'])
+@app.route('/api/profile/update', methods=['POST'], endpoint='api_profile_update')
 @login_required
 @role_required('Homeowner')
 def api_profile_update():
@@ -507,7 +505,7 @@ def api_profile_update():
     log_audit(session['username'], session['role'], 'Updated Profile', session['username'], 'Profile Details', 'Updated')
     return jsonify({"status": "success", "message": "Profile updated successfully."})
 
-@app.route('/api/profile/photo', methods=['POST'])
+@app.route('/api/profile/photo', methods=['POST'], endpoint='api_profile_photo')
 @login_required
 @role_required('Homeowner')
 def api_profile_photo():
@@ -529,7 +527,7 @@ def api_profile_photo():
         return jsonify({"status": "success", "message": "Photo uploaded successfully.", "image_url": image_url})
     return jsonify({"status": "error", "message": "Invalid file format."}), 400
 
-@app.route('/api/settings/update', methods=['POST'])
+@app.route('/api/settings/update', methods=['POST'], endpoint='api_settings_update')
 @login_required
 @role_required('Homeowner')
 def api_settings_update():
@@ -545,7 +543,7 @@ def api_settings_update():
     save_json(USERS_FILE, users)
     return jsonify({"status": "success", "message": "Settings updated."})
 
-@app.route('/api/settings/password', methods=['POST'])
+@app.route('/api/settings/password', methods=['POST'], endpoint='api_settings_password')
 @login_required
 def api_settings_password():
     data = request.get_json() or {}
@@ -570,7 +568,7 @@ def api_settings_password():
 
     return jsonify({"status": "error", "message": "User not found."}), 404
 
-@app.route('/api/requests/submit', methods=['POST'])
+@app.route('/api/requests/submit', methods=['POST'], endpoint='api_request_submit')
 @login_required
 @role_required('Homeowner')
 def api_request_submit():
@@ -587,7 +585,6 @@ def api_request_submit():
             fee_amount = fee_val.get('amount', 50.0)
             break
 
-    # Vehicle fee calculations: 4 Wheels = 200, 2/3 Wheels = 100, E-bike = 100
     if 'vehicles' in form_data and isinstance(form_data['vehicles'], list):
         calc_fee = 0.0
         v_prices = {'4 Wheels': 200.0, '2 Wheels': 100.0, '3 Wheels': 100.0, '2/3 Wheels': 100.0, 'E-bike': 100.0, 'E-Bike': 100.0}
@@ -626,7 +623,7 @@ def api_request_submit():
     log_audit(session['username'], session['role'], 'Submitted Request', req_id, '-', 'Submitted')
     return jsonify({"status": "success", "message": f"Request {req_id} submitted successfully!"})
 
-@app.route('/api/requests/cancel', methods=['POST'])
+@app.route('/api/requests/cancel', methods=['POST'], endpoint='api_request_cancel')
 @login_required
 @role_required('Homeowner')
 def api_request_cancel():
@@ -660,14 +657,14 @@ def api_request_cancel():
     log_audit(session['username'], session['role'], 'Cancelled Request', req_id, prev_status, 'Cancelled')
     return jsonify({"status": "success", "message": f"Request {req_id} has been cancelled successfully."})
 
-@app.route('/api/alerts/read', methods=['POST'])
+@app.route('/api/alerts/read', methods=['POST'], endpoint='api_alerts_read')
 @login_required
 def api_alerts_read():
     return jsonify({"status": "success", "message": "Alerts marked as read."})
 
 # --- ADMIN ROUTES ---
 
-@app.route('/admin')
+@app.route('/admin', endpoint='admin_dashboard')
 @login_required
 @role_required('Admin')
 def admin_dashboard():
@@ -697,7 +694,7 @@ def admin_dashboard():
         fees=fees
     )
 
-@app.route('/admin/create_officer', methods=['POST'])
+@app.route('/admin/create_officer', methods=['POST'], endpoint='create_officer')
 @login_required
 @role_required('Admin')
 def create_officer():
@@ -725,7 +722,7 @@ def create_officer():
     flash(f'Officer {full_name} ({role}) created successfully.', 'success')
     return redirect(url_for('admin_dashboard'))
 
-@app.route('/admin/toggle_officer_status/<int:officer_id>', methods=['POST'])
+@app.route('/admin/toggle_officer_status/<int:officer_id>', methods=['POST'], endpoint='toggle_officer_status')
 @login_required
 @role_required('Admin')
 def toggle_officer_status(officer_id):
@@ -741,7 +738,7 @@ def toggle_officer_status(officer_id):
 
 # --- OFFICER ROUTES ---
 
-@app.route('/officer')
+@app.route('/officer', endpoint='officer_dashboard')
 @login_required
 @role_required('Secretary', 'Treasurer', 'President')
 def officer_dashboard():
@@ -749,7 +746,6 @@ def officer_dashboard():
     reqs = load_json(REQUESTS_FILE, [])
     fees = load_json(FEES_FILE, INITIAL_FEES)
     
-    # Exclude cancelled requests from officer action queues
     if role in ['Secretary', 'Treasurer']:
         assigned_reqs = [r for r in reqs if r.get('assigned_officer') == role and r.get('status') != 'Cancelled']
     else:
@@ -767,7 +763,7 @@ def officer_dashboard():
         audits=relevant_audits
     )
 
-@app.route('/officer/check_request/<req_id>', methods=['POST'])
+@app.route('/officer/check_request/<req_id>', methods=['POST'], endpoint='check_request')
 @login_required
 @role_required('Secretary', 'Treasurer')
 def check_request(req_id):
@@ -806,7 +802,7 @@ def check_request(req_id):
         save_json(REQUESTS_FILE, reqs)
     return redirect(url_for('officer_dashboard'))
 
-@app.route('/officer/update_payment/<req_id>', methods=['POST'])
+@app.route('/officer/update_payment/<req_id>', methods=['POST'], endpoint='update_payment')
 @login_required
 @role_required('Treasurer')
 def update_payment(req_id):
@@ -829,7 +825,7 @@ def update_payment(req_id):
         flash(f'Payment for {req_id} marked as Paid.', 'success')
     return redirect(url_for('officer_dashboard'))
 
-@app.route('/officer/propose_fee', methods=['POST'])
+@app.route('/officer/propose_fee', methods=['POST'], endpoint='propose_fee')
 @login_required
 @role_required('Treasurer')
 def propose_fee():
@@ -847,7 +843,7 @@ def propose_fee():
         flash(f'Fee change proposed for {fee_name}. Pending President approval.', 'info')
     return redirect(url_for('officer_dashboard'))
 
-@app.route('/officer/president_action/<req_id>', methods=['POST'])
+@app.route('/officer/president_action/<req_id>', methods=['POST'], endpoint='president_action')
 @login_required
 @role_required('President')
 def president_action(req_id):
@@ -877,7 +873,7 @@ def president_action(req_id):
         save_json(REQUESTS_FILE, reqs)
     return redirect(url_for('officer_dashboard'))
 
-@app.route('/officer/president_fee_action', methods=['POST'])
+@app.route('/officer/president_fee_action', methods=['POST'], endpoint='president_fee_action')
 @login_required
 @role_required('President')
 def president_fee_action():
