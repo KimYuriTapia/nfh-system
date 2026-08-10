@@ -5,10 +5,30 @@ import time
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
+from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'nfh_hoa_secret_key_super_secure'
+
+# Secret key retrieved securely from os.environ
+app.secret_key = os.environ.get('SECRET_KEY', '7f8a9e2b1c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f')
+
+# --- GMAIL SMTP CONFIGURATION (READ FROM OS.ENVIRON) ---
+app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
+
+# Robust boolean parsing for Render environment variables
+use_tls_str = str(os.environ.get('MAIL_USE_TLS', 'true')).lower()
+app.config['MAIL_USE_TLS'] = use_tls_str in ['true', '1', 'on', 'yes']
+
+use_ssl_str = str(os.environ.get('MAIL_USE_SSL', 'false')).lower()
+app.config['MAIL_USE_SSL'] = use_ssl_str in ['true', '1', 'on', 'yes']
+
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'capstone.team2.bsis@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', '')
+app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'capstone.team2.bsis@gmail.com')
+
+mail = Mail(app)
 
 UPLOAD_FOLDER = os.path.join(app.root_path, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -23,17 +43,45 @@ REQUESTS_FILE = os.path.join(DATA_DIR, 'requests.json')
 FEES_FILE = os.path.join(DATA_DIR, 'fees.json')
 AUDIT_FILE = os.path.join(DATA_DIR, 'audit.json')
 
-# Temporary verification codes storage: { email: { "code": str, "expiry": float, "purpose": str } }
 VERIFICATION_CODES = {}
 
 def generate_verification_code():
     return str(random.randint(100000, 999999))
 
-def send_email_code(email, code, purpose="verification"):
-    print(f"[EMAIL SERVICE] Code for {email} ({purpose}): {code}")
-    return True
+def send_email_code(email, code, first_name="Homeowner", purpose="verification"):
+    try:
+        subject = "NFH Email Verification Code"
+        
+        body = f"""Dear {first_name},
 
-# Helper functions for persistence
+Thank you for creating an account with NFH.
+
+To complete your account registration, please use the verification code below:
+
+Your Verification Code:
+
+{code}
+
+This code is valid for 10 minutes. Please do not share this code with anyone.
+
+If you did not request an NFH account, you may safely ignore this email.
+
+Thank you,
+NFH Management
+Neighborhood/Homeowner Facility System"""
+
+        msg = Message(
+            subject=subject,
+            recipients=[email],
+            body=body
+        )
+        mail.send(msg)
+        return True
+    except Exception as e:
+        # Log safe error details server-side without leaking password or sensitive data
+        app.logger.error(f"[SMTP Error] Failed to send email to recipient: {type(e).__name__}")
+        return False
+
 def load_json(filepath, default):
     if not os.path.exists(filepath):
         with open(filepath, 'w') as f:
@@ -185,11 +233,10 @@ def get_role_redirect_url(role):
 def validate_ph_phone(phone):
     return len(phone) == 11 and phone.startswith("09") and phone.isdigit()
 
-# Auth Decorators with functools.wraps
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'username' not in session:
+        if 'username' not in session or 'user_id' not in session:
             if request.path.startswith('/api/'):
                 return jsonify({"status": "error", "message": "Authentication required."}), 401
             flash('Please log in to access this page.', 'danger')
@@ -224,7 +271,7 @@ def serve_static(filename):
 
 @app.route('/', endpoint='index')
 def index():
-    if 'username' in session:
+    if 'username' in session and 'role' in session:
         return redirect(get_role_redirect_url(session.get('role')))
     return render_template('index.html')
 
@@ -282,6 +329,7 @@ def api_login():
 def send_verification_code():
     data = request.get_json() or {}
     email = data.get('email', '').strip().lower()
+    first_name = data.get('first_name', 'Homeowner').strip()
     purpose = data.get('purpose', 'register')
 
     if not email:
@@ -292,18 +340,24 @@ def send_verification_code():
         if any(u.get('email', '').lower() == email for u in users):
             return jsonify({"status": "error", "message": "Email address is already registered."}), 400
     elif purpose == 'forgot_password':
-        if not any(u.get('email', '').lower() == email for u in users):
+        user = next((u for u in users if u.get('email', '').lower() == email), None)
+        if not user:
             return jsonify({"status": "error", "message": "No account found associated with this email address."}), 404
+        first_name = user.get('first_name', 'Homeowner')
 
     code = generate_verification_code()
     VERIFICATION_CODES[email] = {
         "code": code,
         "expiry": time.time() + 600,
         "purpose": purpose,
-        "verified": False
+        "verified": False,
+        "first_name": first_name
     }
 
-    send_email_code(email, code, purpose)
+    sent = send_email_code(email, code, first_name, purpose)
+    if not sent:
+        return jsonify({"status": "error", "message": "We could not send the verification code. Please try again later."}), 500
+
     return jsonify({"status": "success", "message": f"Verification code sent to {email}."})
 
 @app.route('/api/verify-code', methods=['POST'], endpoint='verify_code')
