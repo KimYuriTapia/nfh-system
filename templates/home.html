@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Northfairway Homes - HOA Portal</title>
 
-    <!-- Google Fonts & FontAwesome -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -34,7 +33,7 @@
         <header class="global-nav-header" id="globalSidebar" aria-label="Primary navigation">
             <div class="logo-area">
                 <div class="logo-box">
-                    <img src="../static/logo.png" alt="Northfairway Homes Logo" class="logo-img">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Northfairway Homes Logo" class="logo-img">
                 </div>
                 <span>Northfairway Homes</span>
                 <button class="sidebar-close" type="button" aria-label="Close navigation" onclick="closeMobileNavigation()"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
@@ -438,7 +437,7 @@
                             <span>Receive updates about your requests and dues via email.</span>
                         </div>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="toggle-email" checked onchange="handleToggleChange('Email')">
+                            <input type="checkbox" id="toggle-email" checked>
                             <span class="slider"></span>
                         </label>
                     </div>
@@ -449,47 +448,9 @@
                             <span>Get text alerts for urgent community announcements</span>
                         </div>
                         <label class="toggle-switch">
-                            <input type="checkbox" id="toggle-sms" checked onchange="handleToggleChange('SMS')">
+                            <input type="checkbox" id="toggle-sms" checked>
                             <span class="slider"></span>
                         </label>
-                    </div>
-                </div>
-
-                <div class="dashboard-card" id="emergency-section">
-                    <div class="card-header-settings">
-                        <div class="header-left-settings">
-                            <div class="icon-container">
-                                <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                            </div>
-                            <div class="header-text">
-                                <h3>Emergency Contact</h3>
-                                <p>Provide a contact in case of emergencies.</p>
-                            </div>
-                        </div>
-                        <div class="action-btn-group" id="emergency-actions">
-                            <button class="edit-link" onclick="toggleEdit('emergency')">Edit</button>
-                        </div>
-                    </div>
-
-                    <div class="form-row-settings">
-                        <div class="field-group-settings">
-                            <label class="field-label">Contact Name</label>
-                            <input type="text" id="em-name" class="input-display" placeholder="N/A" disabled>
-                        </div>
-                        <div class="field-group-settings">
-                            <label class="field-label">Contact Number</label>
-                            <input type="text" id="em-number" class="input-display" placeholder="N/A" disabled>
-                        </div>
-                        <div class="field-group-settings">
-                            <label class="field-label">Relationship</label>
-                            <select id="em-relationship" class="input-display" disabled>
-                                <option value="Spouse">Spouse</option>
-                                <option value="Siblings">Siblings</option>
-                                <option value="Parent">Parent</option>
-                                <option value="Children">Children</option>
-                                <option value="Guardian">Guardian</option>
-                            </select>
-                        </div>
                     </div>
                 </div>
 
@@ -504,25 +465,25 @@
                                 <p>Manage your account password securely.</p>
                             </div>
                         </div>
-                        <div class="action-btn-group" id="security-actions">
-                            <button class="edit-link" onclick="toggleEdit('security')">Edit</button>
-                        </div>
                     </div>
 
-                    <div class="form-row-settings">
-                        <div class="field-group-settings">
-                            <label class="field-label">Current Password</label>
-                            <input type="password" id="sec-current" class="input-display" placeholder="••••••••" disabled autocomplete="current-password">
+                    <form id="securityForm" style="margin-top: 15px;">
+                        <div class="form-row-settings" style="display: flex; flex-direction: column; gap: 10px;">
+                            <div class="field-group-settings">
+                                <label class="field-label">Current Password</label>
+                                <input type="password" id="sec-current" class="input-display" required autocomplete="current-password" style="width: 100%; padding: 8px;">
+                            </div>
+                            <div class="field-group-settings">
+                                <label class="field-label">New Password</label>
+                                <input type="password" id="sec-new" class="input-display" required autocomplete="new-password" style="width: 100%; padding: 8px;">
+                            </div>
+                            <div class="field-group-settings">
+                                <label class="field-label">Confirm New Password</label>
+                                <input type="password" id="sec-confirm" class="input-display" required autocomplete="new-password" style="width: 100%; padding: 8px;">
+                            </div>
                         </div>
-                        <div class="field-group-settings">
-                            <label class="field-label">New Password</label>
-                            <input type="password" id="sec-new" class="input-display" placeholder="••••••••" disabled autocomplete="new-password">
-                        </div>
-                        <div class="field-group-settings">
-                            <label class="field-label">Confirm New Password</label>
-                            <input type="password" id="sec-confirm" class="input-display" placeholder="••••••••" disabled autocomplete="new-password">
-                        </div>
-                    </div>
+                        <button type="submit" class="btn btn-save" style="margin-top: 15px; background: #2D6A4F; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Update Password</button>
+                    </form>
                 </div>
 
                 <div class="dashboard-card signout-container">
@@ -554,14 +515,14 @@
     <!-- CANCEL REQUEST CONFIRMATION MODAL -->
     <div class="modal-overlay" id="cancelConfirmModal">
         <div class="modal-box" style="max-width: 450px; text-align: center;">
-            <div class="modal-title" style="color: var(--error-color);">Cancel Request?</div>
-            <p style="margin-bottom: 20px; font-size: 0.95rem; color: var(--text-dark);">
+            <div class="modal-title" style="color: var(--error-color, #d9534f);">Cancel Request?</div>
+            <p style="margin-bottom: 20px; font-size: 0.95rem; color: #333;">
                 Are you sure you want to cancel this request?<br>
-                <strong style="color: var(--text-muted); font-size: 0.85rem;">This action cannot be undone.</strong>
+                <strong style="color: #666; font-size: 0.85rem;">This action cannot be undone.</strong>
             </p>
             <div style="display: flex; justify-content: center; gap: 15px;">
                 <button type="button" class="btn btn-cancel" onclick="closeCancelConfirmModal()">Cancel</button>
-                <button type="button" class="btn" style="background-color: var(--error-color); color: white;" id="btnConfirmCancelRequest">Confirm Cancellation</button>
+                <button type="button" class="btn" style="background-color: #d9534f; color: white;" id="btnConfirmCancelRequest">Confirm Cancellation</button>
             </div>
         </div>
     </div>
@@ -595,7 +556,7 @@
 
             <form id="submissionForm" onsubmit="handleRequestSubmit(event)">
                 <div class="modal-form" id="dynamicFormFieldsContainer">
-                    <!-- Templates render here -->
+                    <!-- Templates render dynamically -->
                 </div>
 
                 <div class="modal-actions">
@@ -605,51 +566,6 @@
             </form>
         </div>
     </div>
-
-    <script>
-        function previewProfilePicture(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const formData = new FormData();
-                formData.append('file', file);
-
-                fetch('/api/profile/photo', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        const imageSrc = data.image_url;
-                        const imgPreview = document.getElementById('profileImagePreview');
-                        const defaultIcon = document.getElementById('defaultAvatarIcon');
-                        if (imgPreview) {
-                            imgPreview.src = imageSrc;
-                            imgPreview.style.display = 'block';
-                        }
-                        if (defaultIcon) {
-                            defaultIcon.style.display = 'none';
-                        }
-
-                        const topAvatar = document.getElementById('topBarAvatar');
-                        if (topAvatar) {
-                            topAvatar.style.backgroundImage = `url('${imageSrc}')`;
-                            topAvatar.style.backgroundSize = 'cover';
-                            topAvatar.style.backgroundPosition = 'center';
-                        }
-                        if (window.showToastNotification) {
-                            window.showToastNotification(data.message, 'success');
-                        }
-                    } else {
-                        if (window.showToastNotification) {
-                            window.showToastNotification(data.message || 'Failed to upload photo.', 'error');
-                        }
-                    }
-                })
-                .catch(err => console.error('Error uploading image:', err));
-            }
-        }
-    </script>
 
     <script src="{{ url_for('static', filename='homeowner.js') }}"></script>
 </body>
