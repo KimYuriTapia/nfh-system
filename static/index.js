@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const toForgotPasswordBtn = document.getElementById('to-forgot-password');
     const forgotToSignInBtn = document.getElementById('forgot-to-signin');
     const backToSignUpBtn = document.getElementById('back-to-signup');
+    const resendSignupCodeBtn = document.getElementById('resend-signup-code');
 
     const signInForm = document.getElementById('signin-form');
     const signUpForm = document.getElementById('signup-form');
@@ -17,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const forgotCodeForm = document.getElementById('forgot-code-form');
     const forgotResetForm = document.getElementById('forgot-reset-form');
 
-    let pendingRegistrationData = null;
+    let currentRegisteredEmail = null;
     let pendingForgotEmail = null;
 
     function showBox(boxToShow) {
@@ -45,9 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
         toForgotPasswordBtn.addEventListener('click', (e) => {
             e.preventDefault();
             showBox(forgotBox);
-            forgotEmailForm.style.display = 'block';
-            forgotCodeForm.style.display = 'none';
-            forgotResetForm.style.display = 'none';
+            if (forgotEmailForm) forgotEmailForm.style.display = 'block';
+            if (forgotCodeForm) forgotCodeForm.style.display = 'none';
+            if (forgotResetForm) forgotResetForm.style.display = 'none';
         });
     }
 
@@ -65,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Sign In Action
+    // Sign In Submit
     if (signInForm) {
         signInForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -87,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const result = await response.json();
                 if (result.status === 'success') {
-                    window.location.href = result.redirect || '/portal';
+                    window.location.href = result.redirect || '/';
                 } else {
                     alert(result.message || 'Invalid username or password.');
                 }
@@ -103,10 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Sign Up Form Handler (Triggers Verification Code Email Before Account Creation)
+    // Signup Submit -> Validate & Request Verification Code
     if (signUpForm) {
         signUpForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
             const firstName = document.getElementById('reg-first').value.trim();
             const lastName = document.getElementById('reg-last').value.trim();
             const email = document.getElementById('reg-email').value.trim();
@@ -115,51 +117,52 @@ document.addEventListener('DOMContentLoaded', () => {
             const password = document.getElementById('reg-pass').value;
             const passwordConfirm = document.getElementById('reg-pass-confirm').value;
 
-            // Philippine 11-digit Phone format validation (Starts with 09)
             const phPhoneRegex = /^09\d{9}$/;
             if (!phPhoneRegex.test(phone)) {
-                alert('Invalid phone number format. Must be exactly 11 digits starting with 09 (e.g. 09123456789).');
+                alert('Phone number must be exactly 11 digits starting with 09 (e.g. 09123456789).');
                 return;
             }
 
             if (password !== passwordConfirm) {
-                alert('Passwords do not match. Please re-enter.');
+                alert('Passwords do not match.');
                 return;
             }
-
-            pendingRegistrationData = {
-                first_name: firstName,
-                last_name: lastName,
-                email: email,
-                username: username,
-                phone: phone,
-                password: password,
-                password_confirm: passwordConfirm
-            };
 
             const submitBtn = document.getElementById('btn-signup-submit');
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Sending Code...';
+                submitBtn.textContent = 'Sending Verification Code...';
             }
 
             try {
                 const response = await fetch('/api/send-verification-code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: email, purpose: 'register' })
+                    body: JSON.stringify({
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: email,
+                        username: username,
+                        phone: phone,
+                        password: password,
+                        password_confirm: passwordConfirm,
+                        purpose: 'register'
+                    })
                 });
+
                 const result = await response.json();
 
                 if (result.status === 'success') {
-                    document.getElementById('verify-email-subtitle').textContent = `Verification code sent to ${email}`;
+                    currentRegisteredEmail = email;
+                    const subTitle = document.getElementById('verify-email-subtitle');
+                    if (subTitle) subTitle.textContent = `We sent a verification code to ${email}`;
                     showBox(verificationBox);
                 } else {
                     alert(result.message || 'Failed to send verification code.');
                 }
             } catch (err) {
-                console.error('Error sending code:', err);
-                alert('Connection error. Please try again.');
+                console.error('Registration dispatch error:', err);
+                alert('We could not send the verification code. Please try again.');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
@@ -169,29 +172,63 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Verification Code Submit Handler for Sign Up
+    // Resend Signup Code
+    if (resendSignupCodeBtn) {
+        resendSignupCodeBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (!currentRegisteredEmail) {
+                alert('Registration email missing. Please fill out registration form again.');
+                showBox(signUpBox);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/send-verification-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: currentRegisteredEmail,
+                        first_name: document.getElementById('reg-first').value.trim(),
+                        last_name: document.getElementById('reg-last').value.trim(),
+                        username: document.getElementById('reg-user').value.trim(),
+                        phone: document.getElementById('reg-phone').value.trim(),
+                        password: document.getElementById('reg-pass').value,
+                        password_confirm: document.getElementById('reg-pass-confirm').value,
+                        purpose: 'register'
+                    })
+                });
+                const result = await response.json();
+                alert(result.message || 'New verification code requested.');
+            } catch (err) {
+                alert('Error resending verification code. Please try again.');
+            }
+        });
+    }
+
+    // Verification Code Submit -> Verify & Create Account
     if (verificationForm) {
         verificationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const code = document.getElementById('verify-code').value.trim();
             const submitBtn = document.getElementById('btn-verify-submit');
 
-            if (!pendingRegistrationData) {
-                alert('Registration details missing. Please start registration again.');
+            if (!currentRegisteredEmail) {
+                alert('Email session missing. Please start registration again.');
                 showBox(signUpBox);
                 return;
             }
 
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Verifying...';
+                submitBtn.textContent = 'Verifying Code...';
             }
 
             try {
+                // Step 1: Verify Code
                 const verifyRes = await fetch('/api/verify-code', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: pendingRegistrationData.email, code: code })
+                    body: JSON.stringify({ email: currentRegisteredEmail, code: code })
                 });
                 const verifyResult = await verifyRes.json();
 
@@ -200,22 +237,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                // Code valid -> Proceed to final account registration
+                // Step 2: Create Account upon Successful Verification
                 const regRes = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pendingRegistrationData)
+                    body: JSON.stringify({ email: currentRegisteredEmail })
                 });
                 const regResult = await regRes.json();
 
                 if (regResult.status === 'success') {
-                    alert(regResult.message);
-                    signUpForm.reset();
-                    verificationForm.reset();
-                    pendingRegistrationData = null;
+                    alert('Verification Successful! Account created. You can now log in.');
+                    if (signUpForm) signUpForm.reset();
+                    if (verificationForm) verificationForm.reset();
+                    currentRegisteredEmail = null;
                     showBox(signInBox);
                 } else {
-                    alert(regResult.message || 'Registration failed.');
+                    alert(regResult.message || 'Account creation failed.');
                 }
             } catch (err) {
                 console.error('Verification error:', err);
@@ -229,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Forgot Password Email Request Form
+    // Forgot Password Email Submit
     if (forgotEmailForm) {
         forgotEmailForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -252,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.status === 'success') {
                     pendingForgotEmail = email;
                     forgotEmailForm.style.display = 'none';
-                    forgotCodeForm.style.display = 'block';
+                    if (forgotCodeForm) forgotCodeForm.style.display = 'block';
                 } else {
                     alert(result.message || 'Failed to verify account.');
                 }
@@ -268,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Forgot Password Verification Code Handler
+    // Forgot Password Verification Submit
     if (forgotCodeForm) {
         forgotCodeForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -290,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (result.status === 'success') {
                     forgotCodeForm.style.display = 'none';
-                    forgotResetForm.style.display = 'block';
+                    if (forgotResetForm) forgotResetForm.style.display = 'block';
                 } else {
                     alert(result.message || 'Invalid verification code.');
                 }
@@ -306,7 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Forgot Password Reset Submit Handler
+    // Forgot Password Reset Submit
     if (forgotResetForm) {
         forgotResetForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -315,7 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const resetBtn = document.getElementById('btn-forgot-reset');
 
             if (newPassword !== confirmPassword) {
-                alert('Passwords do not match. Please try again.');
+                alert('Passwords do not match.');
                 return;
             }
 
