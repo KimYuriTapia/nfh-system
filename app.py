@@ -7,6 +7,10 @@ from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory
 from flask_mail import Mail, Message
 from werkzeug.utils import secure_filename
+from dotenv import load_dotenv
+
+# Load local .env file if available
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -17,7 +21,7 @@ app.secret_key = os.environ.get('SECRET_KEY', '7f8a9e2b1c3d4e5f6a7b8c9d0e1f2a3b4
 app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
 
-# Robust boolean parsing for Render environment variables
+# Robust boolean parsing for environment variables
 use_tls_str = str(os.environ.get('MAIL_USE_TLS', 'true')).lower()
 app.config['MAIL_USE_TLS'] = use_tls_str in ['true', '1', 'on', 'yes']
 
@@ -48,7 +52,7 @@ VERIFICATION_CODES = {}
 def generate_verification_code():
     return str(random.randint(100000, 999999))
 
-def send_email_code(email, code, first_name="Homeowner", purpose="verification"):
+def send_email_code(email, code, first_name="Homeowner"):
     try:
         subject = "NFH Email Verification Code"
         
@@ -78,7 +82,6 @@ Neighborhood/Homeowner Facility System"""
         mail.send(msg)
         return True
     except Exception as e:
-        # Log safe error details server-side without leaking password or sensitive data
         app.logger.error(f"[SMTP Error] Failed to send email to recipient: {type(e).__name__}")
         return False
 
@@ -328,18 +331,36 @@ def api_login():
 @app.route('/api/send-verification-code', methods=['POST'], endpoint='send_verification_code')
 def send_verification_code():
     data = request.get_json() or {}
+    first_name = data.get('first_name', '').strip()
+    last_name = data.get('last_name', '').strip()
     email = data.get('email', '').strip().lower()
-    first_name = data.get('first_name', 'Homeowner').strip()
+    username = data.get('username', '').strip()
+    phone = data.get('phone', '').strip()
+    password = data.get('password', '')
+    password_confirm = data.get('password_confirm', '')
     purpose = data.get('purpose', 'register')
 
-    if not email:
-        return jsonify({"status": "error", "message": "Email address is required."}), 400
-
-    users = load_json(USERS_FILE, INITIAL_USERS)
     if purpose == 'register':
+        if not all([first_name, last_name, email, username, phone, password]):
+            return jsonify({"status": "error", "message": "All required fields must be filled."}), 400
+
+        if not validate_ph_phone(phone):
+            return jsonify({"status": "error", "message": "Phone number must be exactly 11 digits and start with '09'."}), 400
+
+        if password != password_confirm:
+            return jsonify({"status": "error", "message": "Passwords do not match."}), 400
+
+        users = load_json(USERS_FILE, INITIAL_USERS)
+        if any(u['username'].lower() == username.lower() for u in users):
+            return jsonify({"status": "error", "message": "Username is already taken."}), 400
+
         if any(u.get('email', '').lower() == email for u in users):
             return jsonify({"status": "error", "message": "Email address is already registered."}), 400
+
     elif purpose == 'forgot_password':
+        if not email:
+            return jsonify({"status": "error", "message": "Email address is required."}), 400
+        users = load_json(USERS_FILE, INITIAL_USERS)
         user = next((u for u in users if u.get('email', '').lower() == email), None)
         if not user:
             return jsonify({"status": "error", "message": "No account found associated with this email address."}), 404
@@ -351,14 +372,24 @@ def send_verification_code():
         "expiry": time.time() + 600,
         "purpose": purpose,
         "verified": False,
-        "first_name": first_name
+        "user_data": {
+            "first_name": first_name,
+            "last_name": last_name,
+            "username": username,
+            "phone": phone,
+            "password": password
+        }
     }
 
-    sent = send_email_code(email, code, first_name, purpose)
+    sent = send_email_code(email, code, first_name)
     if not sent:
-        return jsonify({"status": "error", "message": "We could not send the verification code. Please try again later."}), 500
+        return jsonify({"status": "error", "message": "We could not send the verification code. Please try again."}), 500
 
-    return jsonify({"status": "success", "message": f"Verification code sent to {email}."})
+    return jsonify({
+        "status": "success",
+        "verification_required": True,
+        "message": f"A verification code has been sent to {email}."
+    })
 
 @app.route('/api/verify-code', methods=['POST'], endpoint='verify_code')
 def verify_code():
@@ -385,26 +416,18 @@ def verify_code():
 @app.route('/api/register', methods=['POST'], endpoint='api_register')
 def api_register():
     data = request.get_json() or {}
-    first_name = data.get('first_name', '').strip()
-    last_name = data.get('last_name', '').strip()
     email = data.get('email', '').strip().lower()
-    username = data.get('username', '').strip()
-    phone = data.get('phone', '').strip()
-    password = data.get('password', '')
-    password_confirm = data.get('password_confirm', '')
-
-    if not all([first_name, last_name, email, username, phone, password]):
-        return jsonify({"status": "error", "message": "All required fields must be filled."}), 400
-
-    if not validate_ph_phone(phone):
-        return jsonify({"status": "error", "message": "Phone number must be exactly 11 digits and start with '09'."}), 400
 
     record = VERIFICATION_CODES.get(email)
-    if not record or not record.get("verified"):
+    if not record or not record.get("verified") or record.get("purpose") != "register":
         return jsonify({"status": "error", "message": "Email verification must be completed before registration."}), 400
 
-    if password != password_confirm:
-        return jsonify({"status": "error", "message": "Passwords do not match."}), 400
+    u_data = record.get("user_data", {})
+    first_name = u_data.get("first_name")
+    last_name = u_data.get("last_name")
+    username = u_data.get("username")
+    phone = u_data.get("phone")
+    password = u_data.get("password")
 
     users = load_json(USERS_FILE, INITIAL_USERS)
 
