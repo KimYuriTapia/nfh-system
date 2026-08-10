@@ -100,10 +100,11 @@
                                 <th>Fee</th>
                                 <th>Payment Status</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="requestTableBody">
-                            <tr><td colspan="6" class="empty-placeholder">No recent requests found</td></tr>
+                            <tr><td colspan="7" class="empty-placeholder">No recent requests found</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -351,7 +352,7 @@
                                 <label>Mobile Number:</label>
                                 <div class="value-container">
                                     <span class="static-text" data-field="mobile">-</span>
-                                    <input type="text" class="edit-input" name="mobile" required data-type="mobile">
+                                    <input type="text" class="edit-input" name="mobile" maxlength="11" required data-type="mobile">
                                     <div class="error-msg"></div>
                                 </div>
                             </div>
@@ -547,6 +548,21 @@
             <button class="close-modal" onclick="closeGeneralModal()">&times;</button>
             <div class="modal-title" id="generalModalTitle">Detail View</div>
             <div id="generalModalBody"></div>
+        </div>
+    </div>
+
+    <!-- CANCEL REQUEST CONFIRMATION MODAL -->
+    <div class="modal-overlay" id="cancelConfirmModal">
+        <div class="modal-box" style="max-width: 450px; text-align: center;">
+            <div class="modal-title" style="color: var(--error-color);">Cancel Request?</div>
+            <p style="margin-bottom: 20px; font-size: 0.95rem; color: var(--text-dark);">
+                Are you sure you want to cancel this request?<br>
+                <strong style="color: var(--text-muted); font-size: 0.85rem;">This action cannot be undone.</strong>
+            </p>
+            <div style="display: flex; justify-content: center; gap: 15px;">
+                <button type="button" class="btn btn-cancel" onclick="closeCancelConfirmModal()">Cancel</button>
+                <button type="button" class="btn" style="background-color: var(--error-color); color: white;" id="btnConfirmCancelRequest">Confirm Cancellation</button>
+            </div>
         </div>
     </div>
 
