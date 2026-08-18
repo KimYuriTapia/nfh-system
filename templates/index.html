@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>North Fairway HOA - Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+</head>
+<body>
+
+    <div class="auth-container">
+        <div class="brand-side">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo" class="brand-logo">
+            </div>
+            <h1>North Fairway Homes</h1>
+            <p>Homeowners Association Inc.</p>
+        </div>
+
+        <div class="form-side">
+            <!-- SIGN IN FORM -->
+            <div id="signin-box" class="form-box active">
+                <h2>Welcome Back</h2>
+                <p class="form-subtitle">Please sign in to access your portal</p>
+
+                <form id="signin-form">
+                    <div class="input-group full-width">
+                        <label for="login-username">Username</label>
+                        <input type="text" id="login-username" placeholder="Enter your username" required>
+                    </div>
+                    <div class="input-group full-width">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="Enter your password" required>
+                    </div>
+                    <div class="full-width" style="text-align: right; margin-top: -5px; margin-bottom: 15px;">
+                        <a href="#" id="to-forgot-password" style="font-size: 0.85rem; color: #2D6A4F; text-decoration: none;">Forgot Password?</a>
+                    </div>
+                    <button type="submit" class="btn-submit" id="btn-signin-submit">Sign In</button>
+                </form>
+
+                <p class="toggle-text">
+                    Don't have an account? <a href="#" id="to-signup">Sign Up</a>
+                </p>
+            </div>
+
+            <!-- FORGOT PASSWORD FORM -->
+            <div id="forgot-password-box" class="form-box" style="display: none;">
+                <h2>Forgot Password</h2>
+                <p class="form-subtitle">Reset your account password</p>
+
+                <form id="forgot-password-form">
+                    <div class="input-group full-width">
+                        <label for="reset-email">Email Address</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="email" id="reset-email" placeholder="juan.delacruz@domain.com" required style="flex: 1;">
+                            <button type="button" class="btn-submit" id="btn-send-reset-code" style="width: auto; padding: 0 12px; font-size: 0.85rem;">Send Code</button>
+                        </div>
+                    </div>
+
+                    <div class="input-group full-width" id="reset-code-group" style="display: none;">
+                        <label for="reset-code">6-Digit Reset Code</label>
+                        <input type="text" id="reset-code" placeholder="123456" maxlength="6" pattern="\d{6}">
+                    </div>
+
+                    <div class="input-group full-width" id="reset-pass-group" style="display: none;">
+                        <label for="reset-new-pass">New Password</label>
+                        <input type="password" id="reset-new-pass" placeholder="••••••••" minlength="8">
+                    </div>
+
+                    <button type="submit" class="btn-submit" id="btn-reset-password-submit" style="display: none;">Reset Password</button>
+                </form>
+
+                <p class="toggle-text">
+                    Remember your password? <a href="#" class="to-signin-link">Sign In</a>
+                </p>
+            </div>
+
+            <!-- SIGN UP FORM -->
+            <div id="signup-box" class="form-box" style="display: none;">
+                <h2>Create Account</h2>
+                <p class="form-subtitle">Register for a new homeowner account</p>
+
+                <form id="signup-form" class="form-grid">
+                    <div class="input-group">
+                        <label for="reg-first">First Name</label>
+                        <input type="text" id="reg-first" placeholder="Juan" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-last">Last Name</label>
+                        <input type="text" id="reg-last" placeholder="Dela Cruz" required>
+                    </div>
+                    <div class="input-group full-width">
+                        <label for="reg-email">Email Address</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="email" id="reg-email" placeholder="juan.delacruz@domain.com" required style="flex: 1;">
+                            <button type="button" class="btn-submit" id="btn-send-reg-code" style="width: auto; padding: 0 10px; font-size: 0.8rem;">Send Code</button>
+                        </div>
+                    </div>
+                    <div class="input-group full-width" id="reg-code-wrapper" style="display: none;">
+                        <label for="reg-code">6-Digit Verification Code</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="reg-code" placeholder="Enter 6-digit code" maxlength="6" pattern="\d{6}" style="flex: 1;">
+                            <button type="button" class="btn-submit" id="btn-verify-reg-code" style="width: auto; padding: 0 10px; font-size: 0.8rem;">Verify</button>
+                        </div>
+                        <span id="reg-code-status" style="font-size: 0.8rem; margin-top: 4px; display: block;"></span>
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-user">Username</label>
+                        <input type="text" id="reg-user" placeholder="juandc99" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-phone">Phone Number</label>
+                        <input type="tel" id="reg-phone" placeholder="09123456789" required maxlength="11" pattern="09\d{9}">
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-pass">Password</label>
+                        <input type="password" id="reg-pass" placeholder="••••••••" required minlength="8">
+                    </div>
+                    <div class="input-group">
+                        <label for="reg-pass-confirm">Confirm Password</label>
+                        <input type="password" id="reg-pass-confirm" placeholder="••••••••" required minlength="8">
+                    </div>
+                    <div class="full-width">
+                        <button type="submit" class="btn-submit" id="btn-signup-submit" disabled>Sign Up</button>
+                    </div>
+                </form>
+
+                <p class="toggle-text">
+                    Already have an account? <a href="#" class="to-signin-link">Sign In</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='index.js') }}"></script>
+</body>
+</html>

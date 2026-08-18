@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFH HOA - Admin Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="NFH Logo" class="sidebar-logo" onerror="this.style.display='none'">
+                <div class="brand-text">
+                    <h2>NFH HOA</h2>
+                    <span>Admin System</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">Dashboard</div>
+                <a href="#dashboard" class="nav-item active" data-tab="dashboard-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <span>Overview</span>
+                </a>
+
+                <div class="nav-section">Management</div>
+                <a href="#officers" class="nav-item" data-tab="officers-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    <span>Officer Accounts</span>
+                </a>
+                <a href="#requests" class="nav-item" data-tab="requests-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    <span>Request Monitoring</span>
+                </a>
+                <a href="#fees" class="nav-item" data-tab="fees-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span>Fee Monitoring</span>
+                </a>
+
+                <div class="nav-section">Monitoring</div>
+                <a href="#audit" class="nav-item" data-tab="audit-tab">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    <span>Audit Trail</span>
+                </a>
+
+                <div class="nav-section">Account</div>
+                <a href="javascript:void(0)" class="nav-item text-danger" id="logoutBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <span>Logout</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <div class="main-container">
+            <!-- Header -->
+            <header class="top-header">
+                <button class="toggle-btn" id="sidebarToggle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <div class="header-title">
+                    <h1 id="pageTitle">System Administrator Dashboard</h1>
+                </div>
+                <div class="header-user">
+                    <span class="user-role-badge">System Admin</span>
+                    <span class="user-name">{{ session.full_name }}</span>
+                </div>
+            </header>
+
+            <!-- Alerts -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                <div class="flash-messages">
+                  {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endwith %}
+
+            <!-- Main Body -->
+            <main class="content-body">
+                <!-- TAB 1: OVERVIEW / DASHBOARD -->
+                <section id="dashboard-tab" class="tab-content active">
+                    <!-- Cards Grid -->
+                    <div class="card-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-primary">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Total Homeowners</h3>
+                                <p class="stat-number">{{ metrics.total_homeowners }}</p>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon bg-info">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Total Requests</h3>
+                                <p class="stat-number">{{ metrics.total_requests }}</p>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon bg-warning">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Pending Requests</h3>
+                                <p class="stat-number">{{ metrics.pending_requests }}</p>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon bg-accent">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Pending Pres. Approval</h3>
+                                <p class="stat-number">{{ metrics.pending_president }}</p>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon bg-success">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Active Officers</h3>
+                                <p class="stat-number">{{ metrics.active_officers }}</p>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon bg-secondary">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            </div>
+                            <div class="stat-details">
+                                <h3>Pending Fee Changes</h3>
+                                <p class="stat-number">{{ metrics.pending_fee_changes }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Activity Section -->
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Recent System Activity</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date/Time</th>
+                                        <th>User</th>
+                                        <th>Role</th>
+                                        <th>Action</th>
+                                        <th>Item/Request ID</th>
+                                        <th>Prev Value</th>
+                                        <th>New Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for audit in audits[-5:]|reverse %}
+                                    <tr>
+                                        <td>{{ audit.timestamp }}</td>
+                                        <td><strong>{{ audit.username }}</strong></td>
+                                        <td><span class="badge">{{ audit.role }}</span></td>
+                                        <td>{{ audit.action }}</td>
+                                        <td><code>{{ audit.item }}</code></td>
+                                        <td>{{ audit.prev_val }}</td>
+                                        <td><span class="text-success">{{ audit.new_val }}</span></td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="7" class="text-center">No recent activities logged.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: OFFICER MANAGEMENT -->
+                <section id="officers-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header flex-between">
+                            <h2>Officer Accounts Management</h2>
+                            <button class="btn btn-primary" onclick="openModal('createOfficerModal')">+ Create Officer</button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Full Name</th>
+                                        <th>Username</th>
+                                        <th>Assigned Role</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for off in officers %}
+                                    <tr>
+                                        <td>{{ off.id }}</td>
+                                        <td><strong>{{ off.full_name }}</strong></td>
+                                        <td>{{ off.username }}</td>
+                                        <td><span class="role-badge role-{{ off.role|lower }}">{{ off.role }}</span></td>
+                                        <td>
+                                            <span class="status-pill status-{{ off.status|lower }}">{{ off.status }}</span>
+                                        </td>
+                                        <td>
+                                            <form action="{{ url_for('toggle_officer_status', officer_id=off.id) }}" method="POST" style="display:inline;">
+                                                <button type="submit" class="btn btn-sm {{ 'btn-danger' if off.status == 'Active' else 'btn-success' }}">
+                                                    {{ 'Deactivate' if off.status == 'Active' else 'Activate' }}
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="6" class="text-center">No officer accounts created yet.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: REQUEST MONITORING -->
+                <section id="requests-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>All Homeowner Requests</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Request ID</th>
+                                        <th>Homeowner</th>
+                                        <th>Type</th>
+                                        <th>Assigned Officer</th>
+                                        <th>Req Status</th>
+                                        <th>Payment</th>
+                                        <th>Submitted</th>
+                                        <th>Updated</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for req in requests %}
+                                    <tr>
+                                        <td><code>{{ req.id }}</code></td>
+                                        <td>{{ req.homeowner }}</td>
+                                        <td>{{ req.request_type }}</td>
+                                        <td>{{ req.assigned_officer }}</td>
+                                        <td><span class="status-pill status-{{ req.status|replace(' ', '-')|lower }}">{{ req.status }}</span></td>
+                                        <td><span class="pay-pill pay-{{ req.payment_status|lower }}">{{ req.payment_status }}</span></td>
+                                        <td>{{ req.date_submitted }}</td>
+                                        <td>{{ req.last_updated }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="8" class="text-center">No requests submitted.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: FEE MONITORING -->
+                <section id="fees-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Standard System Fees Monitoring</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fee Item</th>
+                                        <th>Current Amount</th>
+                                        <th>Proposed Amount</th>
+                                        <th>Approval Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for key, fee in fees.items() %}
+                                    <tr>
+                                        <td><strong>{{ key }}</strong></td>
+                                        <td>₱{{ "%.2f"|format(fee.amount) }}</td>
+                                        <td>
+                                            {% if fee.proposed_amount %}
+                                                <strong class="text-warning">₱{{ "%.2f"|format(fee.proposed_amount) }}</strong>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="status-pill status-{{ fee.status|replace(' ', '-')|lower }}">{{ fee.status }}</span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: AUDIT TRAIL -->
+                <section id="audit-tab" class="tab-content">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h2>Append-Only System Audit Trail</h2>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>User</th>
+                                        <th>Role</th>
+                                        <th>Action Taken</th>
+                                        <th>Item / Target</th>
+                                        <th>Previous State</th>
+                                        <th>New State</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for audit in audits|reverse %}
+                                    <tr>
+                                        <td>{{ audit.timestamp }}</td>
+                                        <td>{{ audit.username }}</td>
+                                        <td><span class="badge">{{ audit.role }}</span></td>
+                                        <td>{{ audit.action }}</td>
+                                        <td><code>{{ audit.item }}</code></td>
+                                        <td>{{ audit.prev_val }}</td>
+                                        <td>{{ audit.new_val }}</td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="7" class="text-center">No audit records found.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Create Officer Modal -->
+    <div class="modal-overlay" id="createOfficerModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Create New Officer Account</h3>
+                <button class="close-btn" onclick="closeModal('createOfficerModal')">&times;</button>
+            </div>
+            <form action="{{ url_for('create_officer') }}" method="POST">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" name="full_name" required class="form-input" placeholder="e.g. Juan Dela Cruz">
+                    </div>
+                    <div class="form-group">
+                        <label>Username</label>
+                        <input type="text" name="username" required class="form-input" placeholder="e.g. juantreasurer">
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" name="password" required class="form-input" placeholder="••••••••">
+                    </div>
+                    <div class="form-group">
+                        <label>Role</label>
+                        <select name="role" required class="form-input">
+                            <option value="Secretary">Secretary</option>
+                            <option value="Treasurer">Treasurer</option>
+                            <option value="President">President</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('createOfficerModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Account</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Logout Confirmation Modal -->
+    <div class="modal-overlay" id="logoutModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3>Log out of NFH HOA?</h3>
+                <button class="close-btn" onclick="closeModal('logoutModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to log out of the System Administrator portal?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('logoutModal')">Cancel</button>
+                <a href="{{ url_for('logout') }}" class="btn btn-danger">Log Out</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>
