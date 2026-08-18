@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import pymysql
 import pymysql.cursors
 
-# Load environment variables
+# Load local environment variables if available
 load_dotenv()
 
 app = Flask(__name__)
@@ -36,17 +36,17 @@ def format_details(details):
         pass
     return str(details)
 
-# Database configuration
+# Database configuration dynamically fetched from environment variables
 DB_HOST = os.getenv('MYSQL_HOST', 'localhost')
 DB_USER = os.getenv('MYSQL_USER', 'root')
 DB_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
 DB_NAME = os.getenv('MYSQL_DB', 'nfh-system')
 DB_PORT = int(os.getenv('MYSQL_PORT', 3306))
 
-# Mail configuration
+# Mail configuration dynamically fetched from environment variables
 app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
 app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
-app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() in ['true', '1', 't']
 app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
@@ -816,8 +816,12 @@ def cancel_request():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 # ============================================================================
-# START SERVER
+# START SERVER (Production Binding for Render)
 # ============================================================================
 
 if __name__ == '__main__':
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    # Dynamically bind to PORT assigned by Render, defaulting to 5000 for local dev
+    port = int(os.getenv('PORT', 5000))
+    # Disable debug mode in production
+    debug_mode = os.getenv('FLASK_ENV', 'production') == 'development'
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
