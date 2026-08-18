@@ -10,12 +10,16 @@ from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import pymysql
 import pymysql.cursors
+from whitenoise import WhiteNoise
 
 # Load local environment variables if available
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key_nfh')
+
+# Wrap Flask WSGI application with WhiteNoise for serving static assets in production
+app.wsgi_app = WhiteNoise(app.wsgi_app, root='static/', prefix='static/')
 
 # Custom Jinja2 Filter for Request Form Details Formatting
 @app.template_filter('format_details')
@@ -820,8 +824,6 @@ def cancel_request():
 # ============================================================================
 
 if __name__ == '__main__':
-    # Dynamically bind to PORT assigned by Render, defaulting to 5000 for local dev
     port = int(os.getenv('PORT', 5000))
-    # Disable debug mode in production
     debug_mode = os.getenv('FLASK_ENV', 'production') == 'development'
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
