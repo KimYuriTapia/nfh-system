@@ -1,0 +1,7 @@
+Flask
+Flask-Mail
+werkzeug
+python-dotenv
+python-dateutil
+PyMySQL
+reportlab

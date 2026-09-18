@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>North Fairway Homes HOA | Document Request and Approval Workflow Governance System</title>
+<meta name="description" content="North Fairway Homes Homeowners' Association — Document Request and Approval Workflow Governance System. Secure login for authorized homeowners and administrative personnel.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='index.css') }}">
+</head>
+<body>
+
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="navbar" id="navbar">
+  <div class="navbar-inner">
+    <div class="brand">
+      <span class="brand-mark">
+        <img src="{{ url_for('static', filename='logo.png') }}" width="40" height="40" alt="North Fairway Homes Homeowners' Association seal">
+      </span>
+      <span class="brand-text">
+        <span class="brand-name">North Fairway Homes</span>
+        <span class="brand-sub">Homeowners&rsquo; Association</span>
+      </span>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-copy reveal">
+        <p class="eyebrow">North Fairway Homes HOA</p>
+        <h1 class="hero-heading">
+          Smarter Administration<br>
+          for a <span class="accent-text">Better Community</span>
+        </h1>
+        <p class="hero-sub">
+          An organized workflow information system designed to manage document requests, approvals, status tracking, and administrative records for the North Fairway Homes community.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary btn-large" href="{{ url_for('register_page') }}">
+            Login to System
+            <svg class="btn-arrow" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M3.5 8h9M8.5 4l4 4-4 4"></path>
+            </svg>
+          </a>
+        </div>
+        <p class="hero-note">Secure access for authorized users.</p>
+      </div>
+
+      <div class="hero-visual reveal">
+        <div class="mock-window" role="img" aria-label="Design preview of the NFH-HOA administrative system dashboard">
+          <div class="mock-topbar">
+            <span class="mock-title">NFH-HOA Administrative System</span>
+            <span class="mock-user">
+              <span class="mock-avatar" aria-hidden="true"></span>
+            </span>
+          </div>
+
+          <div class="mock-body">
+            <div class="mock-cards">
+              <div class="mock-card">
+                <span class="mock-card-label">Document Requests</span>
+                <span class="mock-card-value">24</span>
+              </div>
+              <div class="mock-card">
+                <span class="mock-card-label">Pending Approvals</span>
+                <span class="mock-card-value">08</span>
+              </div>
+              <div class="mock-card">
+                <span class="mock-card-label">Outstanding</span>
+                <span class="mock-card-value">₱200</span>
+              </div>
+            </div>
+
+            <div class="mock-main">
+              <div class="mock-list">
+                <div class="mock-list-header">Recent Requests</div>
+
+                <div class="mock-row">
+                  <span class="mock-row-name">Certificate of Residency</span>
+                  <span class="mock-status status-pending">Pending</span>
+                </div>
+                <div class="mock-row">
+                  <span class="mock-row-name">Gate Pass</span>
+                  <span class="mock-status status-approved">Approved</span>
+                </div>
+                <div class="mock-row">
+                  <span class="mock-row-name">Vehicle Sticker</span>
+                  <span class="mock-status status-processing">Processing</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="mock-disclaimer">Design preview only &mdash; not actual NFH-HOA data.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ABOUT NFH-HOA
+       ============================================================ -->
+  <section class="about">
+    <div class="section-inner">
+      <div class="about-intro reveal">
+        <h2 class="section-heading">Serving the North Fairway Homes Community</h2>
+        <p>The North Fairway Homes Homeowners&rsquo; Association (NFH-HOA) oversees administrative governance within the subdivision and is responsible for managing records, processing requests, enforcing policies, and coordinating administrative decisions.</p>
+        <p class="about-secondary">As the volume and complexity of administrative transactions increase, organized information management becomes important for maintaining efficient service delivery and organizational trust.</p>
+      </div>
+
+      <div class="about-grid">
+        <article class="info-card reveal">
+          <span class="info-index">01</span>
+          <h3>Administrative Governance</h3>
+          <p>Supporting organized administration and coordination within the North Fairway Homes community.</p>
+        </article>
+        <article class="info-card reveal">
+          <span class="info-index">02</span>
+          <h3>Record Management</h3>
+          <p>Managing homeowner records, document requests, and administrative information.</p>
+        </article>
+        <article class="info-card reveal">
+          <span class="info-index">03</span>
+          <h3>Community Services</h3>
+          <p>Supporting the processing of homeowner requests and association-related concerns.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       CURRENT CHALLENGE
+       ============================================================ -->
+  <section class="challenge">
+    <div class="section-inner">
+      <div class="challenge-header reveal">
+        <h2 class="section-heading">From Fragmented Processes to Organized Workflows</h2>
+        <p class="section-lead">NFH-HOA currently manages document requests, certifications, approvals, and complaints through manual and semi-digital procedures.</p>
+      </div>
+
+      <div class="challenge-body">
+        <div class="challenge-sources reveal">
+          <span class="challenge-sources-label">Current Process</span>
+          <div class="source-chip">Handwritten Forms</div>
+          <span class="source-connector" aria-hidden="true"></span>
+          <div class="source-chip">Logbooks</div>
+          <span class="source-connector" aria-hidden="true"></span>
+          <div class="source-chip">Spreadsheets</div>
+          <span class="source-connector" aria-hidden="true"></span>
+          <div class="source-chip">Shared Drives</div>
+          <span class="source-connector" aria-hidden="true"></span>
+          <div class="source-chip">Chat / Verbal Coordination</div>
+        </div>
+
+        <div class="challenge-issues reveal">
+          <span class="challenge-sources-label">Resulting Challenges</span>
+          <ul class="issue-list">
+            <li><span class="issue-dot" aria-hidden="true"></span>Inconsistent document tracking</li>
+            <li><span class="issue-dot" aria-hidden="true"></span>Redundant data entry</li>
+            <li><span class="issue-dot" aria-hidden="true"></span>Limited process visibility</li>
+            <li><span class="issue-dot" aria-hidden="true"></span>Delayed approvals</li>
+            <li><span class="issue-dot" aria-hidden="true"></span>Difficulty generating consolidated reports</li>
+            <li><span class="issue-dot" aria-hidden="true"></span>Lack of structured audit trails</li>
+            <li><span class="issue-dot" aria-hidden="true"></span>Miscommunication and processing delays</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="challenge-closing reveal">These fragmented processes make it difficult to consolidate records, verify request status, and provide effective management oversight.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       KEY SYSTEM FEATURES
+       ============================================================ -->
+  <section class="features">
+    <div class="section-inner">
+      <h2 class="section-heading reveal">Everything Organized in One Workflow</h2>
+
+      <div class="features-grid">
+        <article class="feature-card reveal">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M7 3.5h7l4 4V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"></path>
+              <path d="M14 3.5V8h4"></path>
+              <line x1="9" y1="13" x2="15" y2="13"></line>
+              <line x1="9" y1="16.5" x2="15" y2="16.5"></line>
+            </svg>
+          </span>
+          <span class="feature-index">01</span>
+          <h3>Document Request Submission</h3>
+          <p>Allows homeowners to submit official document requests through a centralized system.</p>
+        </article>
+
+        <article class="feature-card reveal">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="5.5" cy="6" r="2.2"></circle>
+              <circle cx="18.5" cy="18" r="2.2"></circle>
+              <circle cx="18.5" cy="6" r="2.2"></circle>
+              <path d="M7.5 6h8.5M18.5 8.2V15.8"></path>
+            </svg>
+          </span>
+          <span class="feature-index">02</span>
+          <h3>Workflow Routing</h3>
+          <p>Structures the movement of requests through defined administrative workflow steps.</p>
+        </article>
+
+        <article class="feature-card reveal">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="8.25"></circle>
+              <path d="M8.3 12.2 L10.7 14.6 L15.7 9.4"></path>
+            </svg>
+          </span>
+          <span class="feature-index">03</span>
+          <h3>Approval Tracking</h3>
+          <p>Tracks requests through review and approval stages while maintaining authorized decision-making.</p>
+        </article>
+
+        <article class="feature-card reveal">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M3.5 13.5h4l2.2-6.5 3 12 2.2-7.5h5.6"></path>
+            </svg>
+          </span>
+          <span class="feature-index">04</span>
+          <h3>Status Monitoring</h3>
+          <p>Provides visibility into the current status and progress of submitted requests.</p>
+        </article>
+
+        <article class="feature-card reveal">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M6 3.5h9l4 4V19a1.3 1.3 0 0 1-1.3 1.3H6A1.3 1.3 0 0 1 4.7 19V4.8A1.3 1.3 0 0 1 6 3.5Z"></path>
+              <circle cx="12" cy="13" r="3.4"></circle>
+              <path d="M12 11.3V13l1.3 1"></path>
+            </svg>
+          </span>
+          <span class="feature-index">05</span>
+          <h3>Audit Trails</h3>
+          <p>Records administrative activities and status changes to strengthen traceability and accountability.</p>
+        </article>
+
+        <article class="feature-card reveal">
+          <span class="feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 20V10.5M11 20V4.5M18 20v-7"></path>
+              <path d="M3.5 20h17"></path>
+            </svg>
+          </span>
+          <span class="feature-index">06</span>
+          <h3>Administrative Reporting</h3>
+          <p>Provides organized information that supports monitoring, oversight, and managerial decision-making.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       HOW THE SYSTEM WORKS
+       ============================================================ -->
+  <section class="workflow">
+    <div class="section-inner">
+      <h2 class="section-heading reveal">From Request to Completion</h2>
+
+      <div class="workflow-track reveal">
+        <div class="workflow-step">
+          <span class="workflow-index">01</span>
+          <span class="workflow-label">Submit</span>
+          <p>Homeowner submits a document request through the system.</p>
+        </div>
+        <span class="workflow-connector" aria-hidden="true"></span>
+        <div class="workflow-step">
+          <span class="workflow-index">02</span>
+          <span class="workflow-label">Review</span>
+          <p>Authorized personnel verify the submitted request and required information.</p>
+        </div>
+        <span class="workflow-connector" aria-hidden="true"></span>
+        <div class="workflow-step">
+          <span class="workflow-index">03</span>
+          <span class="workflow-label">Approval</span>
+          <p>The appropriate authorized officer reviews and approves or rejects the request.</p>
+        </div>
+        <span class="workflow-connector" aria-hidden="true"></span>
+        <div class="workflow-step">
+          <span class="workflow-index">04</span>
+          <span class="workflow-label">Completion</span>
+          <p>The request is completed and the homeowner receives the appropriate status update or approved document.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ROLE-BASED ACCESS
+       ============================================================ -->
+  <section class="roles">
+    <div class="section-inner">
+      <div class="roles-header reveal">
+        <h2 class="section-heading">Designed Around Responsible Administration</h2>
+        <p class="section-lead">Access and responsibilities are structured around the roles of homeowners and authorized HOA administrative personnel.</p>
+      </div>
+
+      <div class="roles-grid">
+        <article class="role-card reveal">
+          <span class="role-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M4 11.5 12 4l8 7.5"></path>
+              <path d="M6.5 10v9.5a1 1 0 0 0 1 1H16.5a1 1 0 0 0 1-1V10"></path>
+              <circle cx="12" cy="14.2" r="2"></circle>
+            </svg>
+          </span>
+          <h3>Homeowner</h3>
+          <p>Homeowners can submit document requests and monitor the progress of their requests through the system.</p>
+          <ul class="role-actions">
+            <li>Submit document requests</li>
+            <li>Provide homeowner information</li>
+            <li>Monitor request status</li>
+            <li>Receive approved document/status updates</li>
+          </ul>
+        </article>
+
+        <article class="role-card reveal">
+          <span class="role-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 3.5 19.5 6.75 V11.5 C19.5 16 16.3 19.3 12 20.5 C7.7 19.3 4.5 16 4.5 11.5 V6.75 Z"></path>
+              <path d="M9 12 11.2 14.2 15.3 9.8"></path>
+            </svg>
+          </span>
+          <h3>HOA Officer / Administrative Personnel</h3>
+          <p>Authorized HOA personnel manage the operational workflow and administrative records.</p>
+          <ul class="role-actions">
+            <li>Verify submitted requests</li>
+            <li>Process document transactions</li>
+            <li>Approve or reject requests</li>
+            <li>Maintain homeowner records</li>
+            <li>Generate administrative reports</li>
+            <li>Support organizational decision-making</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       GOVERNANCE BENEFITS
+       ============================================================ -->
+  <section class="benefits">
+    <div class="section-inner">
+      <h2 class="section-heading reveal">Built for Better HOA Governance</h2>
+
+      <div class="benefits-grid">
+        <article class="benefit-card reveal">
+          <span class="info-index">01</span>
+          <h3>Transparency</h3>
+          <p>Improves visibility into request progress and administrative workflows.</p>
+        </article>
+        <article class="benefit-card reveal">
+          <span class="info-index">02</span>
+          <h3>Accountability</h3>
+          <p>Maintains records of administrative actions and approval activities.</p>
+        </article>
+        <article class="benefit-card reveal">
+          <span class="info-index">03</span>
+          <h3>Information Accuracy</h3>
+          <p>Centralizes information and reduces inconsistencies caused by fragmented records.</p>
+        </article>
+        <article class="benefit-card reveal">
+          <span class="info-index">04</span>
+          <h3>Process Visibility</h3>
+          <p>Allows authorized personnel to monitor request status and workflow progress.</p>
+        </article>
+        <article class="benefit-card reveal">
+          <span class="info-index">05</span>
+          <h3>Better Coordination</h3>
+          <p>Provides a structured workflow for homeowners and administrative personnel.</p>
+        </article>
+        <article class="benefit-card reveal">
+          <span class="info-index">06</span>
+          <h3>Decision Support</h3>
+          <p>Provides organized information and reporting to support managerial decision-making.</p>
+        </article>
+      </div>
+
+      <p class="benefits-closing reveal">From fragmented manual processes to structured digital governance.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FINAL LOGIN CTA
+       ============================================================ -->
+  <section class="cta">
+    <div class="section-inner cta-inner reveal">
+      <h2>Access the NFH-HOA System</h2>
+      <p>Log in to access the Document Request and Approval Workflow Governance System.</p>
+      <a class="btn btn-primary btn-large" href="{{ url_for('register_page') }}">
+        Login to System
+        <svg class="btn-arrow" viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M3.5 8h9M8.5 4l4 4-4 4"></path>
+        </svg>
+      </a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="section-inner footer-inner">
+    <div class="footer-brand">
+      <div class="footer-brand-top">
+        <img class="footer-mark" src="{{ url_for('static', filename='logo.png') }}" width="36" height="36" alt="North Fairway Homes Homeowners' Association seal">
+        <span class="brand-text">
+          <span class="brand-name">North Fairway Homes</span>
+          <span class="brand-sub">Homeowners&rsquo; Association</span>
+        </span>
+      </div>
+    </div>
+    <div class="footer-meta">
+      <span class="footer-tagline">Administrative Workflow Information System</span>
+    </div>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='index.js') }}"></script>
+</body>
+</html>
