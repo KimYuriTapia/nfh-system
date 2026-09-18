@@ -1,5 +1,0 @@
-Flask
-flask-mysql-connector
-Flask-Mail
-werkzeug
-python-dotenv
