@@ -29,9 +29,6 @@ app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key_nfh')
 # ---------------------------------------------------------------------------
 # Session inactivity security
 # ---------------------------------------------------------------------------
-# Production defaults: 30 minutes of inactivity with a warning during the
-# final 5 minutes. Environment overrides are intentionally limited to timing
-# values so local testing can use shorter intervals without changing code.
 SESSION_INACTIVITY_MINUTES = max(1, int(os.getenv('SESSION_INACTIVITY_MINUTES', '30')))
 SESSION_WARNING_MINUTES = max(1, int(os.getenv('SESSION_WARNING_MINUTES', '5')))
 if SESSION_WARNING_MINUTES >= SESSION_INACTIVITY_MINUTES:
@@ -40,14 +37,9 @@ if SESSION_WARNING_MINUTES >= SESSION_INACTIVITY_MINUTES:
 SESSION_INACTIVITY_SECONDS = SESSION_INACTIVITY_MINUTES * 60
 SESSION_WARNING_SECONDS = SESSION_WARNING_MINUTES * 60
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_INACTIVITY_SECONDS)
-# Background requests must not refresh the cookie simply because a request was
-# made. Real activity updates the session explicitly below.
 app.config['SESSION_REFRESH_EACH_REQUEST'] = False
 
-# Endpoints that run automatically in the background and therefore must never
-# extend an authenticated session.
 SESSION_BACKGROUND_ENDPOINTS = {'live_metrics'}
-
 
 UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -1624,7 +1616,7 @@ def request_pdf(req_id):
 
 
 def _require_admin():
-    return 'user_id' in session and session.get('role'] == 'Admin'
+    return 'user_id' in session and session.get('role') == 'Admin'
 
 
 def _filters_paragraph(styles, filters):
