@@ -4,9 +4,8 @@ import random
 import string
 import json
 import time
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import urllib.request
+import urllib.error
 from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, send_file
@@ -185,7 +184,7 @@ def format_details(details):
 
 
 # ---------------------------------------------------------------------------
-# Database configuration & SMTP Mail Provider
+# Database configuration & Brevo HTTP API Mail Provider
 # ---------------------------------------------------------------------------
 DB_HOST = os.getenv('MYSQL_HOST', 'localhost')
 DB_USER = os.getenv('MYSQL_USER', 'root')
@@ -198,33 +197,47 @@ RESET_CODES = {}
 
 
 def send_http_email(recipient_email, subject, body):
-    """Sends emails securely using standard SMTP (Brevo relay)."""
-    host = os.getenv('SMTP_HOST', 'smtp-relay.brevo.com')
-    port = int(os.getenv('SMTP_PORT', 587))
-    user = os.getenv('SMTP_USER')
-    password = os.getenv('SMTP_PASSWORD')
-    sender = os.getenv('EMAIL_FROM', 'capstone.team2.bsis@gmail.com')
-
-    if not password:
-        print("[SMTP Error] SMTP_PASSWORD is missing from environment variables.")
+    """Sends emails securely using Brevo's HTTP API v3 (Port 443 - Render compatible)."""
+    api_key = os.getenv('MAIL_PASSWORD')
+    if not api_key:
+        print("[Brevo Error] MAIL_PASSWORD (API Key) is missing from environment variables.")
         return False
 
-    msg = MIMEMultipart()
-    msg['From'] = sender
-    msg['To'] = recipient_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
+    url = "https://api.brevo.com/v3/smtp/email"
+    payload = {
+        "sender": {"name": "North Fairway Homes HOA", "email": "capstone.team2.bsis@gmail.com"},
+        "to": [{"email": recipient_email}],
+        "subject": subject,
+        "textContent": body
+    }
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
 
     try:
-        with smtplib.SMTP(host, port) as server:
-            server.starttls()
-            server.login(user, password)
-            server.sendmail(sender, recipient_email, msg.as_string())
-            print(f"[SMTP Success] Email sent to {recipient_email}")
-            return True
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode('utf-8'),
+            headers=headers,
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            if response.status in (200, 201, 202):
+                print(f"[Brevo Success] Email sent to {recipient_email}")
+                return True
+    except urllib.error.HTTPError as e:
+        print(f"[Brevo HTTP Error] HTTP Error {e.code}: {e.reason}")
+        try:
+            error_body = e.read().decode('utf-8')
+            print(f"[Brevo Error Details]: {error_body}")
+        except Exception:
+            pass
     except Exception as e:
-        print(f"[SMTP Exception] Failed to send email: {str(e)}")
-        return False
+        print(f"[Brevo Exception] {str(e)}")
+
+    return False
 
 
 def get_db_connection():
