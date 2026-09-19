@@ -205,7 +205,7 @@ RESET_CODES = {}
 
 def send_http_email(recipient_email, subject, body):
     """Sends emails via Brevo/Sendinblue HTTP API over port 443, bypassing Render SMTP blocks."""
-    api_key = os.getenv('MAIL_PASSWORD', 'xsmtpsib-96a5f564a02205d561b45e18519bbe8abd44e4a5340f029a548798cb6ec392d8-t3xCu2vZipeCESMu')
+    api_key = os.getenv('MAIL_PASSWORD', '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')
     sender_email = os.getenv('MAIL_USERNAME', 'capstone.team2.bsis@gmail.com')
     
     if not api_key:
