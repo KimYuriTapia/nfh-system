@@ -4,6 +4,8 @@ import random
 import string
 import json
 import time
+import urllib.request
+import urllib.error
 from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, send_file
@@ -182,7 +184,7 @@ def format_details(details):
 
 
 # ---------------------------------------------------------------------------
-# Database configuration & Local Fallback Mail Provider
+# Database configuration & Brevo HTTP API Mail Provider
 # ---------------------------------------------------------------------------
 DB_HOST = os.getenv('MYSQL_HOST', 'localhost')
 DB_USER = os.getenv('MYSQL_USER', 'root')
@@ -195,9 +197,47 @@ RESET_CODES = {}
 
 
 def send_http_email(recipient_email, subject, body):
-    """Fallback handler that logs codes/notifications locally to prevent external API blocks or timeouts."""
-    print(f"[Local Email Fallback] To: {recipient_email} | Subject: {subject} | Body: {body}")
-    return True
+    """Sends emails securely using Brevo's HTTP API v3."""
+    api_key = os.getenv('MAIL_PASSWORD')
+    if not api_key:
+        print("[Brevo Error] MAIL_PASSWORD (API Key) is missing from environment variables.")
+        return False
+
+    url = "https://api.brevo.com/v3/smtp/email"
+    payload = {
+        "sender": {"name": "North Fairway Homes HOA", "email": recipient_email},
+        "to": [{"email": recipient_email}],
+        "subject": subject,
+        "textContent": body
+    }
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
+
+    try:
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode('utf-8'),
+            headers=headers,
+            method='POST'
+        )
+        with urllib.request.urlopen(req) as response:
+            if response.status in (200, 201, 202):
+                print(f"[Brevo Success] Email sent to {recipient_email}")
+                return True
+    except urllib.error.HTTPError as e:
+        print(f"[Brevo HTTP Error] HTTP Error {e.code}: {e.reason}")
+        try:
+            error_body = e.read().decode('utf-8')
+            print(f"[Brevo Error Details]: {error_body}")
+        except Exception:
+            pass
+    except Exception as e:
+        print(f"[Brevo Exception] {str(e)}")
+
+    return False
 
 
 def get_db_connection():
@@ -1319,7 +1359,7 @@ def logout():
 
 
 # ===========================================================================
-# AUTHENTICATION APIS (Local Fallback Integration)
+# AUTHENTICATION APIS
 # ===========================================================================
 @app.route('/api/login', methods=['POST'])
 def api_login():
@@ -1365,8 +1405,11 @@ def send_reg_code():
     code = generate_code()
     VERIFICATION_CODES[email] = code
     
-    print(f"[Registration Code] For {email}: {code}")
-    return jsonify({'status': 'success', 'message': f'Verification code generated! (Code: {code})'})
+    subject = "Your North Fairway Homes Registration Code"
+    body = f"Hello,\n\nYour verification code for account registration is: {code}\n\nPlease enter this code to complete your registration."
+    send_http_email(email, subject, body)
+    
+    return jsonify({'status': 'success', 'message': 'Verification code sent to your email.'})
 
 
 @app.route('/api/verify-registration-code', methods=['POST'])
@@ -1421,8 +1464,11 @@ def forgot_send_code():
     code = generate_code()
     RESET_CODES[email] = code
     
-    print(f"[Password Reset Code] For {email}: {code}")
-    return jsonify({'status': 'success', 'message': f'Reset code generated! (Code: {code})'})
+    subject = "Password Reset Code - North Fairway Homes"
+    body = f"Hello,\n\nYour password reset code is: {code}\n\nIf you did not request this, please ignore this email."
+    send_http_email(email, subject, body)
+    
+    return jsonify({'status': 'success', 'message': 'Reset code sent to your email.'})
 
 
 @app.route('/api/forgot-password/reset', methods=['POST'])
