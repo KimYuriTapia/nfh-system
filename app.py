@@ -204,30 +204,38 @@ RESET_CODES = {}
 
 
 def send_http_email(recipient_email, subject, body):
-    """Sends emails via Brevo SMTP over port 587 using standard smtplib."""
+    """Sends emails via Brevo/Sendinblue HTTP API over port 443, bypassing Render SMTP blocks."""
     api_key = os.getenv('MAIL_PASSWORD', 'xsmtpsib-96a5f564a02205d561b45e18519bbe8abd44e4a5340f029a548798cb6ec392d8-t3xCu2vZipeCESMu')
     sender_email = os.getenv('MAIL_USERNAME', 'capstone.team2.bsis@gmail.com')
     
     if not api_key:
         return False
 
-    import smtplib
-    from email.message import EmailMessage
-
-    msg = EmailMessage()
-    msg.set_content(body)
-    msg['Subject'] = subject
-    msg['From'] = sender_email
-    msg['To'] = recipient_email
-
+    url = "https://api.brevo.com/v3/smtp/email"
+    payload = {
+        "sender": {"name": "North Fairway HOA System", "email": sender_email},
+        "to": [{"email": recipient_email}],
+        "subject": subject,
+        "textContent": body
+    }
+    
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json"
+    }
+    
     try:
-        with smtplib.SMTP('smtp-relay.brevo.com', 587) as server:
-            server.starttls()
-            server.login(sender_email, api_key)
-            server.send_message(msg)
-        return True
+        req = urllib.request.Request(
+            url, 
+            data=json.dumps(payload).encode('utf-8'), 
+            headers=headers, 
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return response.status in (200, 201, 202)
     except Exception as e:
-        print(f"SMTP Email Error: {e}")
+        print(f"HTTP Email Error: {e}")
         return False
 
 
