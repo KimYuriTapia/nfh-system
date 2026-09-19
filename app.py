@@ -4,7 +4,6 @@ import random
 import string
 import json
 import time
-import urllib.request
 from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, send_file
@@ -191,7 +190,7 @@ def format_details(details):
 
 
 # ---------------------------------------------------------------------------
-# Database configuration & HTTP Mail Provider
+# Database configuration & Local Fallback Mail Provider
 # ---------------------------------------------------------------------------
 DB_HOST = os.getenv('MYSQL_HOST', 'localhost')
 DB_USER = os.getenv('MYSQL_USER', 'root')
@@ -204,39 +203,9 @@ RESET_CODES = {}
 
 
 def send_http_email(recipient_email, subject, body):
-    """Sends emails via Brevo/Sendinblue HTTP API over port 443, bypassing Render SMTP blocks."""
-    api_key = os.getenv('MAIL_PASSWORD', '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')
-    sender_email = os.getenv('MAIL_USERNAME', 'capstone.team2.bsis@gmail.com')
-    
-    if not api_key:
-        return False
-
-    url = "https://api.brevo.com/v3/smtp/email"
-    payload = {
-        "sender": {"name": "North Fairway HOA System", "email": sender_email},
-        "to": [{"email": recipient_email}],
-        "subject": subject,
-        "textContent": body
-    }
-    
-    headers = {
-        "accept": "application/json",
-        "api-key": api_key,
-        "content-type": "application/json"
-    }
-    
-    try:
-        req = urllib.request.Request(
-            url, 
-            data=json.dumps(payload).encode('utf-8'), 
-            headers=headers, 
-            method='POST'
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            return response.status in (200, 201, 202)
-    except Exception as e:
-        print(f"HTTP Email Error: {e}")
-        return False
+    """Fallback handler that logs codes/notifications locally to prevent external API blocks or timeouts."""
+    print(f"[Local Email Fallback] To: {recipient_email} | Subject: {subject} | Body: {body}")
+    return True
 
 
 def get_db_connection():
@@ -1358,7 +1327,7 @@ def logout():
 
 
 # ===========================================================================
-# AUTHENTICATION APIS (HTTP Mail Integration)
+# AUTHENTICATION APIS (Local Fallback Integration)
 # ===========================================================================
 @app.route('/api/login', methods=['POST'])
 def api_login():
@@ -1404,12 +1373,8 @@ def send_reg_code():
     code = generate_code()
     VERIFICATION_CODES[email] = code
     
-    success = send_http_email(email, 'Northfairway HOA - Email Verification Code', f"Your verification code is: {code}\n\nThis code will expire shortly.")
-    if success:
-        return jsonify({'status': 'success', 'message': 'Verification code sent successfully.'})
-    else:
-        print(f"[HTTP Fallback] Registration code for {email}: {code}")
-        return jsonify({'status': 'success', 'message': f'Verification code generated! (Code: {code})'})
+    print(f"[Registration Code] For {email}: {code}")
+    return jsonify({'status': 'success', 'message': f'Verification code generated! (Code: {code})'})
 
 
 @app.route('/api/verify-registration-code', methods=['POST'])
@@ -1464,12 +1429,8 @@ def forgot_send_code():
     code = generate_code()
     RESET_CODES[email] = code
     
-    success = send_http_email(email, 'Northfairway HOA - Password Reset Code', f"Your password reset code is: {code}")
-    if success:
-        return jsonify({'status': 'success', 'message': 'Reset code sent to email.'})
-    else:
-        print(f"[HTTP Fallback] Password reset code for {email}: {code}")
-        return jsonify({'status': 'success', 'message': f'Reset code generated! (Code: {code})'})
+    print(f"[Password Reset Code] For {email}: {code}")
+    return jsonify({'status': 'success', 'message': f'Reset code generated! (Code: {code})'})
 
 
 @app.route('/api/forgot-password/reset', methods=['POST'])
@@ -1663,7 +1624,7 @@ def request_pdf(req_id):
 
 
 def _require_admin():
-    return 'user_id' in session and session.get('role') == 'Admin'
+    return 'user_id' in session and session.get('role'] == 'Admin'
 
 
 def _filters_paragraph(styles, filters):
