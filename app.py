@@ -8,7 +8,6 @@ from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, send_file
 from flask_mail import Mail, Message
-from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
 import psycopg2
@@ -201,7 +200,6 @@ RESET_CODES = {}
 
 
 def get_db_connection():
-    # Connects to Supabase PostgreSQL using RealDictCursor for compatibility with dict-based row access
     return psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
 
 
@@ -893,7 +891,7 @@ def get_user_data():
         conn.close()
 
         if user:
-            user.pop('password_hash', None)
+            user.pop('password', None)
             if user.get('profile_image'):
                 user['profile_image'] = f"/static/uploads/{os.path.basename(user['profile_image'])}"
             if user.get('dob'):
@@ -1045,13 +1043,13 @@ def update_password():
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            cursor.execute("SELECT password_hash FROM users WHERE id=%s", (session['user_id'],))
+            cursor.execute("SELECT password FROM users WHERE id=%s", (session['user_id'],))
             u = cursor.fetchone()
-            if not u or not check_password_hash(u['password_hash'], data['current_password']):
+            if not u or u['password'] != data['current_password']:
                 conn.close()
                 return jsonify({'status': 'error', 'message': 'Current password incorrect.'}), 400
-            cursor.execute("UPDATE users SET password_hash=%s WHERE id=%s",
-                           (generate_password_hash(data['new_password'], method='pbkdf2:sha256'), session['user_id']))
+            cursor.execute("UPDATE users SET password=%s WHERE id=%s",
+                           (data['new_password'], session['user_id']))
             conn.commit()
         conn.close()
         return jsonify({'status': 'success', 'message': 'Password changed successfully.'})
@@ -1279,7 +1277,6 @@ def create_officer():
     name_parts = full_name.split(' ', 1)
     first_name = name_parts[0]
     last_name = name_parts[1] if len(name_parts) > 1 else 'Officer'
-    pwd_hash = generate_password_hash(password, method='pbkdf2:sha256')
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
@@ -1290,9 +1287,9 @@ def create_officer():
                 return redirect(url_for('admin'))
 
             cursor.execute("""INSERT INTO users
-                (first_name, last_name, username, email, mobile, password_hash, role, status)
+                (first_name, last_name, username, email, mobile, password, role, status)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,'Active')""",
-                           (first_name, last_name, username, email, phone, pwd_hash, role))
+                           (first_name, last_name, username, email, phone, password, role))
             conn.commit()
         conn.close()
         log_audit_action(session.get('username'), session.get('role'),
@@ -1345,7 +1342,7 @@ def api_login():
                            (username, username))
             user = cursor.fetchone()
         conn.close()
-        if not user or not check_password_hash(user['password_hash'], password):
+        if not user or user['password'] != password:
             return jsonify({'status': 'error', 'message': 'Invalid username or password.'}), 401
         if user['status'] != 'Active':
             return jsonify({'status': 'error', 'message': 'Your account is suspended or inactive.'}), 403
@@ -1409,14 +1406,13 @@ def api_register():
     password = data.get('password', '')
     if not all([first_name, last_name, email, username, mobile, password]):
         return jsonify({'status': 'error', 'message': 'All fields are required.'}), 400
-    pwd_hash = generate_password_hash(password, method='pbkdf2:sha256')
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
             cursor.execute("""INSERT INTO users
-                (first_name, last_name, email, username, mobile, password_hash, role)
+                (first_name, last_name, email, username, mobile, password, role)
                 VALUES (%s,%s,%s,%s,%s,%s,'Homeowner')""",
-                           (first_name, last_name, email, username, mobile, pwd_hash))
+                           (first_name, last_name, email, username, mobile, password))
             conn.commit()
         conn.close()
         VERIFICATION_CODES.pop(email, None)
@@ -1460,11 +1456,10 @@ def forgot_reset_password():
     new_password = data.get('new_password', '')
     if RESET_CODES.get(email) != code:
         return jsonify({'status': 'error', 'message': 'Invalid or expired reset code.'}), 400
-    pwd_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
-            cursor.execute("UPDATE users SET password_hash=%s WHERE email=%s", (pwd_hash, email))
+            cursor.execute("UPDATE users SET password=%s WHERE email=%s", (new_password, email))
             conn.commit()
         conn.close()
         RESET_CODES.pop(email, None)
