@@ -4,11 +4,10 @@ import random
 import string
 import json
 import time
-import urllib.request
-import urllib.error
 from io import BytesIO
 from datetime import datetime, timedelta
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash, send_file
+from flask_mail import Mail, Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from dotenv import load_dotenv
@@ -31,6 +30,9 @@ app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key_nfh')
 # ---------------------------------------------------------------------------
 # Session inactivity security
 # ---------------------------------------------------------------------------
+# Production defaults: 30 minutes of inactivity with a warning during the
+# final 5 minutes. Environment overrides are intentionally limited to timing
+# values so local testing can use shorter intervals without changing code.
 SESSION_INACTIVITY_MINUTES = max(1, int(os.getenv('SESSION_INACTIVITY_MINUTES', '30')))
 SESSION_WARNING_MINUTES = max(1, int(os.getenv('SESSION_WARNING_MINUTES', '5')))
 if SESSION_WARNING_MINUTES >= SESSION_INACTIVITY_MINUTES:
@@ -39,9 +41,14 @@ if SESSION_WARNING_MINUTES >= SESSION_INACTIVITY_MINUTES:
 SESSION_INACTIVITY_SECONDS = SESSION_INACTIVITY_MINUTES * 60
 SESSION_WARNING_SECONDS = SESSION_WARNING_MINUTES * 60
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(seconds=SESSION_INACTIVITY_SECONDS)
+# Background requests must not refresh the cookie simply because a request was
+# made. Real activity updates the session explicitly below.
 app.config['SESSION_REFRESH_EACH_REQUEST'] = False
 
+# Endpoints that run automatically in the background and therefore must never
+# extend an authenticated session.
 SESSION_BACKGROUND_ENDPOINTS = {'live_metrics'}
+
 
 UPLOAD_FOLDER = os.path.join(app.static_folder, 'uploads')
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png'}
@@ -57,6 +64,9 @@ HOA_REG = "HLURB Registration Number: NTR-20986-R | TIN No: 486-778-923-000"
 # ---------------------------------------------------------------------------
 # Request-type-specific approval routing
 # ---------------------------------------------------------------------------
+# Keep these names aligned with the request titles currently emitted by the
+# Homeowner request forms. These sets are the single backend source of truth
+# for who may perform the initial checking stage.
 SECRETARY_FIRST_REQUEST_TYPES = {
     'Certificate of Improvement',
     'Proof of Residency',
@@ -80,6 +90,8 @@ def initial_checker_roles(request_type):
         return {'Treasurer'}
     if request_type in SHARED_INITIAL_CHECK_REQUEST_TYPES:
         return {'Secretary', 'Treasurer'}
+    # Preserve legacy behavior for any older/unknown request title: Secretary
+    # remains the default initial reviewer rather than leaving the request stuck.
     return {'Secretary'}
 
 
@@ -89,6 +101,9 @@ def role_can_initial_check(role, request_type, assigned_officer=None):
     allowed = initial_checker_roles(request_type)
     if role not in allowed:
         return False
+    # Shared request types can initially be seen by either authorized officer.
+    # Once one officer has acted (for example, before a correction/resubmission),
+    # keep that request with the same checker so it does not bounce between roles.
     if request_type in SHARED_INITIAL_CHECK_REQUEST_TYPES and assigned_officer in {'Secretary', 'Treasurer'}:
         return role == assigned_officer
     return True
@@ -99,6 +114,7 @@ def request_is_check_actionable(req, role):
         req.get('status') in {'Submitted', 'Under Review'} and
         role_can_initial_check(role, req.get('request_type'), req.get('assigned_officer'))
     )
+
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +136,12 @@ def _session_expired_response():
 
 @app.before_request
 def enforce_session_inactivity():
+    """Expire authenticated sessions after 30 minutes without real activity.
+
+    Automatic live-metric polling is checked for expiration but intentionally
+    does not refresh last_activity. Normal page/API actions do refresh it, so
+    server-side enforcement still works when JavaScript is unavailable.
+    """
     if request.endpoint == 'static' or 'user_id' not in session:
         return None
 
@@ -184,7 +206,7 @@ def format_details(details):
 
 
 # ---------------------------------------------------------------------------
-# Database configuration & Brevo HTTP API Mail Provider
+# Database configuration
 # ---------------------------------------------------------------------------
 DB_HOST = os.getenv('MYSQL_HOST', 'localhost')
 DB_USER = os.getenv('MYSQL_USER', 'root')
@@ -192,52 +214,17 @@ DB_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
 DB_NAME = os.getenv('MYSQL_DB', 'nfhsystem')
 DB_PORT = int(os.getenv('MYSQL_PORT', 3306))
 
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'True').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_USERNAME')
+
+mail = Mail(app)
+
 VERIFICATION_CODES = {}
 RESET_CODES = {}
-
-
-def send_http_email(recipient_email, subject, body):
-    """Sends emails securely using Brevo's HTTP API v3 (Port 443 - Render compatible)."""
-    api_key = os.getenv('MAIL_PASSWORD')
-    if not api_key:
-        print("[Brevo Error] MAIL_PASSWORD (API Key) is missing from environment variables.")
-        return False
-
-    url = "https://api.brevo.com/v3/smtp/email"
-    payload = {
-        "sender": {"name": "North Fairway Homes HOA", "email": "capstone.team2.bsis@gmail.com"},
-        "to": [{"email": recipient_email}],
-        "subject": subject,
-        "textContent": body
-    }
-    headers = {
-        "accept": "application/json",
-        "api-key": api_key,
-        "content-type": "application/json"
-    }
-
-    try:
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode('utf-8'),
-            headers=headers,
-            method='POST'
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            if response.status in (200, 201, 202):
-                print(f"[Brevo Success] Email sent to {recipient_email}")
-                return True
-    except urllib.error.HTTPError as e:
-        print(f"[Brevo HTTP Error] HTTP Error {e.code}: {e.reason}")
-        try:
-            error_body = e.read().decode('utf-8')
-            print(f"[Brevo Error Details]: {error_body}")
-        except Exception:
-            pass
-    except Exception as e:
-        print(f"[Brevo Exception] {str(e)}")
-
-    return False
 
 
 def get_db_connection():
@@ -253,6 +240,7 @@ def now_str():
 
 
 def format_pdf_datetime(value):
+    """Human-readable presentation for database datetimes used in PDFs."""
     if not value:
         return ''
     if isinstance(value, datetime):
@@ -276,12 +264,13 @@ def generate_code(length=6):
 
 
 # ---------------------------------------------------------------------------
-# Validation helpers
+# Validation helpers (also enforced server-side so URL/API bypass is blocked)
 # ---------------------------------------------------------------------------
 COLOR_RE = re.compile(r'^[A-Za-z\s\-]+$')
 
 
 def validate_vehicle_list(vehicles):
+    """Returns an error message string, or None if all vehicles are valid."""
     if not vehicles:
         return 'At least one vehicle is required.'
     for idx, v in enumerate(vehicles, start=1):
@@ -298,7 +287,7 @@ def validate_vehicle_list(vehicles):
 
 
 # ---------------------------------------------------------------------------
-# HOA settings (key/value store)
+# HOA settings (key/value store) — used for Treasurer contact info
 # ---------------------------------------------------------------------------
 def get_settings(keys=None):
     conn = get_db_connection()
@@ -391,7 +380,11 @@ def send_alert_and_email(user_id, subject, body, related_type=None, related_id=N
             u = cursor.fetchone()
         conn.close()
         if u and u.get('email') and u.get('email_notifications', 1):
-            email_sent = send_http_email(u['email'], subject, body)
+            if app.config.get('MAIL_USERNAME'):
+                msg = Message(subject, recipients=[u['email']])
+                msg.body = body
+                mail.send(msg)
+                email_sent = True
 
         conn = get_db_connection()
         with conn.cursor() as cursor:
@@ -448,6 +441,10 @@ def homeowner():
     return render_template('homeowner.html', treasurer=get_treasurer_contact())
 
 
+
+# ---------------------------------------------------------------------------
+# Officer route (queries homeowners for Treasurer dropdown)
+# ---------------------------------------------------------------------------
 @app.route('/officer')
 def officer():
     if 'user_id' not in session or session.get('role') not in OFFICER_ROLES:
@@ -459,6 +456,7 @@ def officer():
     try:
         conn = get_db_connection()
         with conn.cursor() as cursor:
+            # Fetch active homeowners for dropdown selection
             cursor.execute("""
                 SELECT id, first_name, last_name, username,
                        CONCAT(first_name, ' ', last_name) AS full_name
@@ -468,6 +466,7 @@ def officer():
             """)
             homeowners = cursor.fetchall()
 
+            # Fetch active standard pricing configuration
             cursor.execute("SELECT item_name, amount, proposed_amount, status FROM fees ORDER BY item_name ASC")
             fees_rows = cursor.fetchall()
             fees = {
@@ -478,6 +477,7 @@ def officer():
                 } for row in fees_rows
             }
 
+            # Fetch official fixed monthly due amount from active fees (defaults to 100.00 if missing)
             official_monthly_due = fees.get('Monthly Dues', {}).get('amount', 100.00)
 
             cursor.execute("""
@@ -493,6 +493,10 @@ def officer():
             all_requests = cursor.fetchall()
 
             active_requests = [r for r in all_requests if r['status'] != 'Cancelled']
+
+            # Role queues are driven by request type + current database status.
+            # `checking_requests` is the actionable initial-review queue; payment
+            # processing remains a separate Approved/Unpaid Treasurer stage.
             checking_requests = [r for r in active_requests if request_is_check_actionable(r, role)]
             if role == 'Secretary':
                 assigned_requests = checking_requests
@@ -527,6 +531,9 @@ def officer():
                            treasurer=get_treasurer_contact())
 
 
+# ---------------------------------------------------------------------------
+# Admin route
+# ---------------------------------------------------------------------------
 @app.route('/admin')
 def admin():
     if 'user_id' not in session or session.get('role') != 'Admin':
@@ -623,10 +630,15 @@ def check_request(req_id):
     action = request.form.get('action')
     remarks = request.form.get('remarks', '').strip()
 
+    # Only the two existing initial-check workflow actions are valid.  Reject a
+    # missing/unknown action instead of silently storing the intermediate
+    # 'Checked' status, because the President queue is keyed to
+    # 'Pending President Approval'.
     if action not in ('check', 'correction'):
         flash('Invalid request review action. Please try again.', 'error')
         return redirect(url_for('officer'))
 
+    # Requirement: Officer Remarks are REQUIRED when returning a request for correction.
     if action == 'correction' and not remarks:
         flash('Officer Remarks are required when returning a request for correction.', 'error')
         return redirect(url_for('officer'))
@@ -654,6 +666,9 @@ def check_request(req_id):
                 flash(f'{role} is not authorized to perform the initial checking for {prev_req["request_type"]}.', 'error')
                 return redirect(url_for('officer'))
 
+            # A successful authorized check is the handoff to the President.
+            # Correction retains the actual checker so resubmission returns to
+            # the correct Secretary/Treasurer workflow for shared request types.
             new_status = 'Pending President Approval' if action == 'check' else 'For Correction'
             checker = role if role in {'Secretary', 'Treasurer'} else prev_req.get('assigned_officer')
 
@@ -684,6 +699,9 @@ def check_request(req_id):
 
 @app.route('/officer/update_payment/<req_id>', methods=['POST'])
 def update_payment(req_id):
+    """Simple 'Mark as Paid' action (Treasurer/Admin). A request can only be
+    marked Paid once it has already been Approved (Requirement: Payment
+    Restriction). This replaces the old detailed Payment Recording feature."""
     if 'user_id' not in session or session.get('role') not in ['Treasurer', 'Admin']:
         return redirect(url_for('index'))
     try:
@@ -837,7 +855,12 @@ def president_fee_action():
 
 
 # ===========================================================================
-# LIVE DASHBOARD METRICS
+# OWNER APIS
+# ===========================================================================
+
+
+# ===========================================================================
+# ROLE-AWARE LIVE DASHBOARD METRICS (lightweight polling endpoint)
 # ===========================================================================
 @app.route('/api/live-metrics', methods=['GET'])
 def live_metrics():
@@ -895,7 +918,6 @@ def live_metrics():
         return jsonify({'status':'success','role':role,'metrics':metrics,'updated_at':datetime.now().strftime('%H:%M:%S')})
     except Exception as e:
         return jsonify({'status':'error','message':str(e)}), 500
-
 
 @app.route('/api/user-data', methods=['GET'])
 def get_user_data():
@@ -1100,6 +1122,7 @@ def submit_request():
     submission_type = data.get('submissionType') if data.get('submissionType') in VALID_SUBMISSION_TYPES else 'Query'
     user_id = session['user_id']
 
+    # Server-side validation for Vehicle Sticker requests (cannot be bypassed via direct API calls)
     if 'Vehicle' in title:
         err = validate_vehicle_list(form_data.get('vehicles', []))
         if err:
@@ -1134,6 +1157,8 @@ def submit_request():
 
 @app.route('/api/requests/resubmit', methods=['POST'])
 def resubmit_request():
+    """Homeowner updates and resubmits a request that was returned 'For
+    Correction', moving it back into the review queue."""
     if 'user_id' not in session:
         return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
     data = request.get_json() or {}
@@ -1170,6 +1195,9 @@ def resubmit_request():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+# ---------------------------------------------------------------------------
+# Cancel request
+# ---------------------------------------------------------------------------
 @app.route('/api/requests/cancel', methods=['POST'])
 def cancel_request():
     if 'user_id' not in session:
@@ -1221,7 +1249,7 @@ def api_logout():
 
 
 # ===========================================================================
-# TREASURER — MISSING MONTHLY DUES
+# TREASURER — MISSING MONTHLY DUES (applied directly; no President approval)
 # ===========================================================================
 @app.route('/api/treasurer/submit-adjustment', methods=['POST'])
 def treasurer_submit_adjustment():
@@ -1256,6 +1284,7 @@ def treasurer_submit_adjustment():
                             proposed, reason, session.get('username'), session.get('username'), datetime.now()))
             adj_id = cursor.lastrowid
 
+            # Create the individual missing-month ledger entries
             month_cursor = datetime.now().date().replace(day=1)
             for i in range(missing_months):
                 due_month = (month_cursor.replace(day=1) - timedelta(days=30 * i))
@@ -1266,6 +1295,7 @@ def treasurer_submit_adjustment():
         log_audit_action(session.get('username'), session.get('role'),
                          'Missing Dues Adjustment Applied', f'Adjustment-{adj_id}', None, proposed)
 
+        # Requirement: clear, informative missing-dues notification for the homeowner.
         treasurer = get_treasurer_contact()
         send_alert_and_email(
             user_id, 'Missing Monthly Dues Notice',
@@ -1404,12 +1434,21 @@ def send_reg_code():
         return jsonify({'status': 'error', 'message': 'Email address required.'}), 400
     code = generate_code()
     VERIFICATION_CODES[email] = code
-    
-    subject = "Your North Fairway Homes Registration Code"
-    body = f"Hello,\n\nYour verification code for account registration is: {code}\n\nPlease enter this code to complete your registration."
-    send_http_email(email, subject, body)
-    
-    return jsonify({'status': 'success', 'message': 'Verification code sent to your email.'})
+    if not app.config.get('MAIL_USERNAME'):
+        # Email is not configured — this is expected in local/dev setups.
+        # Print the code to the console AND return it in the response so
+        # whoever is testing can actually see it.
+        print(f"[DEV MODE — email not configured] Registration code for {email}: {code}")
+        return jsonify({'status': 'success',
+                        'message': f'Email is not configured on this server. Your verification code is: {code}'})
+    try:
+        msg = Message('Northfairway HOA - Email Verification Code', recipients=[email])
+        msg.body = f"Your verification code is: {code}\n\nThis code will expire shortly."
+        mail.send(msg)
+        return jsonify({'status': 'success', 'message': 'Verification code sent successfully.'})
+    except Exception as e:
+        print(f"[Mail send failed] Registration code for {email}: {code} (error: {e})")
+        return jsonify({'status': 'success', 'message': f'Could not send email — your code is: {code}'})
 
 
 @app.route('/api/verify-registration-code', methods=['POST'])
@@ -1463,12 +1502,18 @@ def forgot_send_code():
         return jsonify({'status': 'error', 'message': 'Email address not found.'}), 404
     code = generate_code()
     RESET_CODES[email] = code
-    
-    subject = "Password Reset Code - North Fairway Homes"
-    body = f"Hello,\n\nYour password reset code is: {code}\n\nIf you did not request this, please ignore this email."
-    send_http_email(email, subject, body)
-    
-    return jsonify({'status': 'success', 'message': 'Reset code sent to your email.'})
+    if not app.config.get('MAIL_USERNAME'):
+        print(f"[DEV MODE — email not configured] Password reset code for {email}: {code}")
+        return jsonify({'status': 'success',
+                        'message': f'Email is not configured on this server. Your reset code is: {code}'})
+    try:
+        msg = Message('Northfairway HOA - Password Reset Code', recipients=[email])
+        msg.body = f"Your password reset code is: {code}"
+        mail.send(msg)
+        return jsonify({'status': 'success', 'message': 'Reset code sent to email.'})
+    except Exception as e:
+        print(f"[Mail send failed] Password reset code for {email}: {code} (error: {e})")
+        return jsonify({'status': 'success', 'message': f'Could not send email — your code is: {code}'})
 
 
 @app.route('/api/forgot-password/reset', methods=['POST'])
@@ -1517,7 +1562,7 @@ def send_approval_email(req_id, req_type, user_id):
 
 
 # ===========================================================================
-# PDF GENERATION
+# PDF GENERATION (individual requests + admin reports)
 # ===========================================================================
 def _pdf_styles():
     styles = getSampleStyleSheet()
@@ -1569,6 +1614,7 @@ REQUEST_TYPE_FIELD_LABELS = {
 
 
 def generate_request_pdf(req):
+    """Builds a PDF document tailored to the request's type."""
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=LETTER, topMargin=0.6 * inch, bottomMargin=0.6 * inch,
                             leftMargin=0.7 * inch, rightMargin=0.7 * inch)
@@ -1661,6 +1707,9 @@ def request_pdf(req_id):
         return redirect(url_for('index'))
 
 
+# ---------------------------------------------------------------------------
+# Admin PDF reports (with filters)
+# ---------------------------------------------------------------------------
 def _require_admin():
     return 'user_id' in session and session.get('role') == 'Admin'
 
@@ -1904,6 +1953,7 @@ def report_adjustments_pdf():
     return _response_pdf(buffer, 'NFH_Missing_Dues_Report.pdf')
 
 
+
 @app.route('/admin/reports/officers/pdf')
 def report_officers_pdf():
     if not _require_admin():
@@ -1953,5 +2003,6 @@ def report_officers_pdf():
     return _response_pdf(buffer, 'NFH_Officer_Records_Report.pdf')
 
 
+# ===========================================================================
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1', port=5000)
