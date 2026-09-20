@@ -3,6 +3,6 @@ Flask-Mail
 werkzeug
 python-dotenv
 python-dateutil
-PyMySQL
+psycopg2-binary
 reportlab
 gunicorn
